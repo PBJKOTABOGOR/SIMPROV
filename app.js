@@ -204,7 +204,9 @@ async function apiPost(payload){
 
   for(let attempt=1; attempt<=maxTry; attempt++){
     const controller = new AbortController();
-    const timeoutMs = payload?.action === "getDashboard" ? 40000 : (isReadOnly ? 24000 : 45000);
+    const actionName = String(payload?.action || "");
+    const longWriteActions = new Set(["saveAndSubmitPaymentV16420","submitPaymentFastV16420","savePaymentDraftV138","submitPaymentV138"]);
+    const timeoutMs = actionName === "getDashboard" ? 40000 : (longWriteActions.has(actionName) ? 120000 : (isReadOnly ? 24000 : 45000));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try{
       const res = await fetch(API_URL, {
@@ -7076,7 +7078,7 @@ dokumenTableV95 = function(k, jenisList, ctx){
       const idd=isNon?d.id_dokumen_non:d.id_dokumen;
       aksi=`<button class="btn-soft" onclick="verifDokV96('${esc(idd)}','VALID','${ctx}')" type="button">Valid</button> <button class="btn-red" onclick="verifDokV96('${esc(idd)}','PERBAIKAN','${ctx}')" type="button">Perbaikan</button>`;
     }
-    const uploadCell=canChoose?`<input type="file" class="dok-file-v96" data-jenis="${esc(j)}" data-ctx="${ctx}" onchange="this.closest('tr').classList.toggle('siap-upload-v96',this.files.length>0);tampilkanTombolUploadV96()">`:(d?`<span class="muted kecil-v96">${repair?'Upload ulang tersedia':'Sudah diupload'}</span>`:'<span class="muted kecil-v96">-</span>');
+    const uploadCell=canChoose?`<input type="file" class="dok-file-v96" data-jenis="${esc(j)}" data-ctx="${ctx}" data-repair="${repair?'1':'0'}" data-idd="${repair?esc(isNon?d.id_dokumen_non:d.id_dokumen):''}" onchange="this.closest('tr').classList.toggle('siap-upload-v96',this.files.length>0);tampilkanTombolUploadV96()">`:(d?`<span class="muted kecil-v96">${repair?'Upload ulang tersedia':'Sudah diupload'}</span>`:'<span class="muted kecil-v96">-</span>');
     const history=d?`<button class="btn-mini btn-detail" onclick="${isNon?`openNonHistoryV104('${esc(d.id_dokumen_non)}')`:`openDocStatusModal('${esc(d.id_dokumen)}')`}" type="button">Riwayat</button>`:'-';
     return `<tr><td>${esc(j)}</td><td>${d?`<a href="${esc(d.url_file)}" target="_blank">${esc(d.nama_file||'Buka File')}</a>`:'<span class="muted">Belum diupload</span>'}</td><td>${d?badge(d.status_verifikasi||'MENUNGGU'):'-'}</td>${bolehUpload?`<td>${uploadCell}</td>`:''}<td>${d?esc(d.catatan_verifikator||d.catatan_Verifikator||d.catatan_admin||'-'):'-'}</td><td>${history}</td><td>${aksi}</td></tr>`;
   }).join('');
@@ -12575,6 +12577,7 @@ openHonorModalV79=function(id){
     <input type="hidden" id="honorKegV79" value="${esc(id)}">
     <div class="honor-modal-info-v81"><div><span>ID Kegiatan</span><b>${esc(k.id_kegiatan)}</b></div><div><span>Jenis</span><b>${esc(k.jenis_non_pengadaan||'Non Pengadaan')}</b></div><div><span>Nilai Perencanaan</span><b>${rupiah(k.jumlah)}</b></div><div><span>Versi Berikutnya</span><b>V${(toNumber(latest?.versi_pdf)||0)+1}</b></div></div>
     <div class="honor-tax-note-v87"><b>Perhitungan:</b> Bruto = Volume × Tarif, Pajak = Bruto × Tarif Pajak, Netto = Bruto − Pajak. Total bruto tidak boleh melebihi Nilai Perencanaan.</div>
+    <div class="form-grid honor-signer-grid-v16421"><div class="field"><label>Nama Penandatangan *</label><input id="honorSignerNameV16421" value="${esc(latest?.nama_penandatangan||currentUser?.nama||'')}" placeholder="Nama lengkap penandatangan" autocomplete="off"></div><div class="field"><label>Jabatan Penandatangan *</label><input id="honorSignerRoleV16421" value="${esc(latest?.jabatan_penandatangan||'Penanggung Jawab Kegiatan')}" placeholder="Contoh: Koordinator Bidang Kesehatan" autocomplete="off"></div></div>
     <div class="honor-modal-body-v81"><div class="honor-head-row-v81"><span>Daftar Penerima / Data Pembayaran</span><button class="btn-soft" type="button" onclick="document.getElementById('honorRowsV79').insertAdjacentHTML('beforeend',nonPaymentRowV155(kegiatanById(document.getElementById('honorKegV79').value),{}));syncNonPaymentTotalsV155()">+ Tambah Penerima</button></div><div id="honorRowsV79" class="honor-rows-v92">${(prefill.length?prefill:[{}]).map(p=>nonPaymentRowV155(k,p)).join('')}</div><div id="nonModalTotalsV155" class="non-modal-totals-v155"></div></div>
     <div class="modal-actions honor-actions-v81"><button class="btn-soft" type="button" onclick="document.getElementById('honorModalV79').classList.add('hidden')">Batal</button><button id="btnGenerateHonorV81" class="btn-green" type="button" onclick="generateHonorV112()">Simpan Data &amp; Cetak Dokumen</button></div>
   </div>`;
@@ -12596,11 +12599,15 @@ function collectNonPaymentRowsV155(k){
 generateHonorV112=async function(){
   const btn=document.getElementById('btnGenerateHonorV81');if(btn?.dataset.busy==='1')return;
   const id=document.getElementById('honorKegV79')?.value||'',k=kegiatanById(id);if(!k){alert('Data kegiatan tidak ditemukan.');return;}
+  const namaPenandatangan=(document.getElementById('honorSignerNameV16421')?.value||'').trim();
+  const jabatanPenandatangan=(document.getElementById('honorSignerRoleV16421')?.value||'').trim();
+  if(!namaPenandatangan){alert('Nama penandatangan wajib diisi.');document.getElementById('honorSignerNameV16421')?.focus();return;}
+  if(!jabatanPenandatangan){alert('Jabatan penandatangan wajib diisi.');document.getElementById('honorSignerRoleV16421')?.focus();return;}
   let penerima;try{penerima=collectNonPaymentRowsV155(k);}catch(e){alert(e.message||String(e));return;}
   const preview=window.open('','_blank');if(preview){preview.document.write('<!doctype html><title>Menyiapkan dokumen...</title><p style="font-family:Arial;padding:24px">Menyiapkan dokumen cetak SIMPROV...</p>');preview.document.close();}
   btn.dataset.busy='1';btn.disabled=true;btn.textContent='Menyimpan...';showLoading('Menyimpan data penerima...');
   try{
-    const res=await apiPost({action:'saveNonProcPrintDataV155',user:currentUser,data:{id_kegiatan:id,penerima:penerima}});if(!res.success)throw new Error(res.message||'Gagal menyimpan data');
+    const res=await apiPost({action:'saveNonProcPrintDataV155',user:currentUser,data:{id_kegiatan:id,penerima:penerima,nama_penandatangan:namaPenandatangan,jabatan_penandatangan:jabatanPenandatangan}});if(!res.success)throw new Error(res.message||'Gagal menyimpan data');
     dashboard.nonPengadaan=dashboard.nonPengadaan||[];dashboard.nonPengadaan.push(res.non_pengadaan);
     dashboard.honorPenerima=dashboard.honorPenerima||[];(res.penerima||[]).forEach(x=>dashboard.honorPenerima.push(x));
     k.status_pencairan=res.status_paket||k.status_pencairan;
@@ -12643,6 +12650,8 @@ function renderNonPrintWindowV155(win,id,version){
   const logo=new URL('logo-siporbo.png',window.location.href).href,jenis=String(k.jenis_non_pengadaan||'Honorarium').trim(),isHonor=jenis.toUpperCase().includes('HONOR');
   const title=isHonor?'DAFTAR PEMBAYARAN HONORARIUM':`DAFTAR PEMBAYARAN ${jenis.toUpperCase()}`;
   const period=nonPrintPeriodV155(k,n),eventDate=nonPrintEventDateV155(k,n),sign=nonPrintSignatoriesV155(k);
+  const signerName=String(n.nama_penandatangan||sign.pelaksana||'Belum diisi').trim();
+  const signerRole=String(n.jabatan_penandatangan||sign.jabatanPelaksana||'Penanggung Jawab Kegiatan').trim();
   const totalBruto=rows.reduce((s,x)=>s+toNumber(x.jumlah_bruto),0),totalPajak=rows.reduce((s,x)=>s+toNumber(x.nilai_pajak),0),totalNetto=rows.reduce((s,x)=>s+toNumber(x.jumlah_netto),0);
   const terbilang=typeof numberWordsV138==='function'?numberWordsV138(totalNetto):nonPrintMoneyV155(totalNetto);
   const bodyRows=rows.map(function(p,i){
@@ -12657,7 +12666,7 @@ function renderNonPrintWindowV155(win,id,version){
     <table class="payment-table"><colgroup><col class="no"><col class="nama"><col class="tanggal"><col class="jabatan"><col class="vol"><col class="sat"><col class="harga"><col class="jumlah"><col class="pajak"><col class="netto"><col class="ttd"></colgroup><thead><tr><th>NO</th><th>NAMA</th><th>HARI DAN TANGGAL<br>KEGIATAN</th><th>JABATAN / PERAN</th><th>VOL</th><th>SAT</th><th>HARGA SAT<br>RP</th><th>JUMLAH<br>RP</th><th>PPH 21</th><th>JUMLAH YANG<br>DITERIMA</th><th>TANDA<br>TANGAN</th></tr></thead><tbody>${bodyRows||'<tr><td colspan="11" class="center">Tidak ada data penerima.</td></tr>'}</tbody><tfoot><tr><td colspan="7" class="total-label">TOTAL</td><td class="money">${nonPrintMoneyV155(totalBruto)}</td><td class="money">${nonPrintMoneyV155(totalPajak)}</td><td class="money">${nonPrintMoneyV155(totalNetto)}</td><td></td></tr></tfoot></table>
     <div class="terbilang"><span>Terbilang</span><span>:</span><em>${esc(terbilang)}</em></div>
     <div class="sign-date">Bogor, ${esc(nonPrintEventDateV155({},n).replace(/^[^,]+,\s*/,''))}</div>
-    <section class="signatures"><div>Pelaksana Kegiatan Pengadaan<div class="space"></div><div class="name-line">${esc(sign.pelaksana)}</div>${sign.jabatanPelaksana?`<small>${esc(sign.jabatanPelaksana)}</small>`:''}</div><div>Bendahara<div class="space"></div><div class="name-line">${esc(sign.bendahara)}</div></div></section>
+    <section class="signatures"><div>${esc(signerRole)}<div class="space"></div><div class="name-line">${esc(signerName)}</div></div><div>Bendahara<div class="space"></div><div class="name-line">${esc(sign.bendahara)}</div></div></section>
     <footer class="audit"><span>ID Kegiatan: ${esc(k.id_kegiatan)} • Bidang: ${esc(bidangName(k.id_bidang))} • Versi: V${esc(version)}</span><span>Data disimpan oleh ${esc(n.generate_by||n.input_by||'-')} pada ${esc(nonPrintDateV155(n.tanggal_generate||n.tanggal_input))}</span></footer>
     </main></body></html>`;
   win.document.open();win.document.write(html);win.document.close();
@@ -12789,6 +12798,8 @@ renderNonPrintWindowV155=function(win,id,version){
   if(!win)return alert('Popup diblokir browser. Izinkan popup lalu klik Cetak kembali.');
   const logo=new URL('logo-siporbo.png',window.location.href).href,title='DAFTAR PEMBAYARAN HONORARIUM';
   const period=nonPrintPeriodV155(k,n),eventDate=nonPrintEventDateV155(k,n),sign=nonPrintSignatoriesV155(k);
+  const signerName=String(n.nama_penandatangan||sign.pelaksana||'Belum diisi').trim();
+  const signerRole=String(n.jabatan_penandatangan||sign.jabatanPelaksana||'Penanggung Jawab Kegiatan').trim();
   const totalBruto=rows.reduce((s,x)=>s+toNumber(x.jumlah_bruto),0),totalPajak=rows.reduce((s,x)=>s+toNumber(x.nilai_pajak),0),totalNetto=rows.reduce((s,x)=>s+toNumber(x.jumlah_netto),0);
   const terbilang=typeof numberWordsV138==='function'?numberWordsV138(totalNetto):nonPrintMoneyV155(totalNetto);
   const bodyRows=rows.map(function(p,i){
@@ -12802,7 +12813,7 @@ renderNonPrintWindowV155=function(win,id,version){
     <section class="doc-title"><h1>${title}</h1><h2>${esc(k.nama_kegiatan)}</h2><h3>BULAN ${esc(period.bulan)} TAHUN ${esc(period.tahun)}</h3></section>
     <table class="payment-table"><colgroup><col class="no"><col class="nama"><col class="tanggal"><col class="jabatan"><col class="vol"><col class="sat"><col class="harga"><col class="jumlah"><col class="pajak"><col class="netto"><col class="ttd"></colgroup><thead><tr><th>NO</th><th>NAMA</th><th>HARI DAN TANGGAL<br>KEGIATAN</th><th>JABATAN / PERAN</th><th>VOL</th><th>SAT</th><th>HARGA SAT<br>RP</th><th>JUMLAH<br>RP</th><th>PPH 21</th><th>JUMLAH YANG<br>DITERIMA</th><th>TANDA<br>TANGAN</th></tr></thead><tbody>${bodyRows||'<tr><td colspan="11" class="center">Tidak ada data penerima.</td></tr>'}</tbody><tfoot><tr><td colspan="7" class="total-label">TOTAL</td><td class="money">${nonPrintMoneyV155(totalBruto)}</td><td class="money">${nonPrintMoneyV155(totalPajak)}</td><td class="money">${nonPrintMoneyV155(totalNetto)}</td><td></td></tr></tfoot></table>
     <div class="terbilang"><span>Terbilang</span><span>:</span><em>${esc(terbilang)}</em></div>
-    <section class="signatures"><div class="sign-left">Pelaksana Kegiatan Pengadaan<div class="space"></div><div class="name-line">${esc(sign.pelaksana)}</div>${sign.jabatanPelaksana?`<small>${esc(sign.jabatanPelaksana)}</small>`:''}</div><div class="sign-right"><div class="city-date">Bogor, ${esc(nonPrintCityDateV155R2(n))}</div><div>Bendahara</div><div class="space"></div></div></section>
+    <section class="signatures"><div class="sign-left">${esc(signerRole)}<div class="space"></div><div class="name-line">${esc(signerName)}</div></div><div class="sign-right"><div class="city-date">Bogor, ${esc(nonPrintCityDateV155R2(n))}</div><div>Bendahara</div><div class="space"></div></div></section>
     <footer class="audit"><span>ID Kegiatan: ${esc(k.id_kegiatan)} • Bidang: ${esc(bidangName(k.id_bidang))} • Versi: V${esc(version)}</span><span>Data disimpan oleh ${esc(n.generate_by||n.input_by||'-')} pada ${esc(nonPrintDateV155(n.tanggal_generate||n.tanggal_input))}</span></footer>
     </main></body></html>`;
   win.document.open();win.document.write(html);win.document.close();
@@ -15041,4 +15052,2584 @@ verifikasiRealisasiNonV112=async function(id,mode){
   };
 
   window.__SIMPROV_PATCH_VERSION_V1643__=PATCH_VERSION_V1643;
+})();
+
+/* =========================================================
+   SIMPROV v164.4 - Pimpinan Realtime, TTE Bertanggal,
+   Badge Antrean Realtime, dan Ringkasan Perencanaan 2 Baris
+   ---------------------------------------------------------
+   Baseline: SIMPROV v164.3 yang diunggah pengguna.
+   Patch aditif paling akhir; tidak mengubah sheet/endpoint/alur lama.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V1644='164.4';
+  const SOURCE_DIRECT_V1644='PENGADAAN_LANGSUNG';
+  const SOURCE_RECORD_V1644='PENCATATAN_PENGADAAN';
+  const FINAL_REAL_STATUSES_V1644=new Set(['FINAL','DISETUJUI','SELESAI','SAH']);
+  const pimpinanTabV1644={
+    'Riwayat Persetujuan Pengajuan':SOURCE_DIRECT_V1644
+  };
+  let paymentRealtimeBusyV1644=false;
+  let paymentRealtimeTimerV1644=null;
+  let paymentPrintContextV1644=null;
+
+  function upperV1644(value){return String(value||'').trim().toUpperCase();}
+  function roleV1644(){return typeof actualRoleV133==='function'?actualRoleV133():upperV1644(currentUser?.role);}
+  function paymentRowsV1644(){return Array.isArray(paymentWorkspaceV138?.pengajuan)?paymentWorkspaceV138.pengajuan:[];}
+  function hasValueV1644(value){return String(value==null?'':value).trim()!=='';}
+  function paymentTimeV1644(row){
+    const keys=['updated_at','tanggal_bayar','tanggal_verifikasi','tanggal_persetujuan','tanggal_perintah','created_at','tanggal_dibuat'];
+    for(const key of keys){const t=Date.parse(row?.[key]||'');if(Number.isFinite(t))return t;}
+    const m=String(row?.id_pengajuan||'').match(/(\d{13})/);return m?Number(m[1]):Number(row?._row||0);
+  }
+  function activityForPaymentV1644(payment){
+    const id=String(payment?.id_kegiatan||'');
+    return (paymentWorkspaceV138?.kegiatan||[]).find(k=>String(k.id_kegiatan||'')===id)
+      ||(dashboard?.perencanaan||[]).find(k=>String(k.id_kegiatan||'')===id)
+      ||null;
+  }
+  function paymentSourceV1644(payment){
+    const activity=activityForPaymentV1644(payment),source=activity||payment||{};
+    try{if(activity&&typeof isPipelineV94==='function'&&isPipelineV94(activity))return SOURCE_DIRECT_V1644;}catch(e){}
+    const method=upperV1644(source.metode_pemilihan||source.metode||source.jenis_metode||source.metode_pengadaan);
+    if(method.includes('PENGADAAN LANGSUNG')||method.includes('TENDER MANUAL')||method==='TENDER')return SOURCE_DIRECT_V1644;
+    return SOURCE_RECORD_V1644;
+  }
+  function pimpinanQueueRowsV1644(){
+    const allowed=new Set(['MENUNGGU PERSETUJUAN PIMPINAN','MENUNGGU PERINTAH KETUA HARIAN']);
+    return paymentRowsV1644().filter(p=>allowed.has(upperV1644(p.status_pengajuan))).sort((a,b)=>paymentTimeV1644(b)-paymentTimeV1644(a));
+  }
+  function pimpinanHistoryRowsV1644(){
+    return paymentRowsV1644().filter(p=>hasValueV1644(p.tanggal_persetujuan)||hasValueV1644(p.pimpinan_penyetuju)||hasValueV1644(p.ketua_harian_nama)||hasValueV1644(p.tanggal_perintah)).sort((a,b)=>paymentTimeV1644(b)-paymentTimeV1644(a));
+  }
+  function sourceLabelV1644(source){return source===SOURCE_DIRECT_V1644?'Pengadaan Langsung':'Pencatatan Pengadaan';}
+  function sourceHelpV1644(source){return source===SOURCE_DIRECT_V1644?'Paket Pengadaan Langsung dan Tender Manual.':'Paket Belanja Langsung yang diproses melalui Pencatatan Pengadaan.';}
+  function paymentTabButtonsV1644(page,rows){
+    const direct=rows.filter(p=>paymentSourceV1644(p)===SOURCE_DIRECT_V1644),record=rows.filter(p=>paymentSourceV1644(p)===SOURCE_RECORD_V1644);
+    let selected=pimpinanTabV1644[page]||SOURCE_DIRECT_V1644;
+    if(selected===SOURCE_DIRECT_V1644&&!direct.length&&record.length)selected=SOURCE_RECORD_V1644;
+    if(selected===SOURCE_RECORD_V1644&&!record.length&&direct.length)selected=SOURCE_DIRECT_V1644;
+    pimpinanTabV1644[page]=selected;
+    return {selected,direct,record,html:`<div class="payment-source-tabs-v1641 payment-source-tabs-v1644" role="tablist" aria-label="Sumber paket riwayat persetujuan">
+      <button type="button" role="tab" aria-selected="${selected===SOURCE_DIRECT_V1644}" class="${selected===SOURCE_DIRECT_V1644?'active':''}" onclick="setPimpinanPaymentTabV1644('${page}','${SOURCE_DIRECT_V1644}')"><span><b>Pengadaan Langsung</b><small>Pengadaan Langsung / Tender Manual</small></span><em>${direct.length}</em></button>
+      <button type="button" role="tab" aria-selected="${selected===SOURCE_RECORD_V1644}" class="${selected===SOURCE_RECORD_V1644?'active':''}" onclick="setPimpinanPaymentTabV1644('${page}','${SOURCE_RECORD_V1644}')"><span><b>Pencatatan Pengadaan</b><small>Belanja Langsung</small></span><em>${record.length}</em></button>
+    </div>`};
+  }
+
+  function renderPimpinanPaymentPageV1644(page){
+    if(roleV1644()!=='PIMPINAN')return false;
+    const area=document.getElementById('contentArea');if(!area)return false;
+    const isHistory=page==='Riwayat Persetujuan Pengajuan';
+    const rows=isHistory?pimpinanHistoryRowsV1644():pimpinanQueueRowsV1644();
+    let list=rows,tabs='',current='';
+    if(isHistory){
+      const tab=paymentTabButtonsV1644(page,rows);tabs=tab.html;list=tab.selected===SOURCE_DIRECT_V1644?tab.direct:tab.record;
+      current=`<div class="payment-source-current-v1641"><b>${esc(sourceLabelV1644(tab.selected))}</b><span>${esc(sourceHelpV1644(tab.selected))}</span></div>`;
+    }
+    const title=isHistory?'Riwayat Persetujuan Pengajuan':'Antrean Persetujuan Pengajuan';
+    const sub=isHistory?'Pengajuan pembayaran yang sudah disetujui atau diperintahkan oleh Pimpinan.':'Pengajuan yang menunggu persetujuan Pimpinan/Ketua Harian.';
+    const empty=isHistory?'Belum ada riwayat pada kategori ini.':'Tidak ada pengajuan yang menunggu persetujuan.';
+    area.innerHTML=`<section class="panel premium-panel payment-list-panel-v140 pimpinan-payment-panel-v1644">
+      <div class="panel-title-row"><div><h3>${esc(title)}</h3><p class="panel-sub">${esc(sub)}</p></div><div class="action-group"><button type="button" class="btn-refresh pimpinan-payment-refresh-v1644" onclick="refreshPimpinanPaymentsV1644()">Refresh</button></div></div>
+      ${tabs}${current}<div class="payment-list-v138">${list.map(paymentCardV138).join('')||`<p class="empty">${esc(empty)}</p>`}</div>
+    </section>`;
+    return true;
+  }
+  window.setPimpinanPaymentTabV1644=function(page,source){
+    pimpinanTabV1644[page]=source===SOURCE_RECORD_V1644?SOURCE_RECORD_V1644:SOURCE_DIRECT_V1644;
+    renderPimpinanPaymentPageV1644(page);
+  };
+
+  function mergePaymentDashboardV1644(){
+    if(!dashboard)return;
+    dashboard.pengajuanPembayaranV138=[...paymentRowsV1644()];
+  }
+  function hydratePaymentWorkspaceFromDashboardV1644(){
+    if(!dashboard||paymentWorkspaceV138?.loaded)return;
+    const rows=Array.isArray(dashboard.pengajuanPembayaranV138)?dashboard.pengajuanPembayaranV138:[];
+    if(!rows.length)return;
+    paymentWorkspaceV138={...(paymentWorkspaceV138||{}),pengajuan:[...rows],kegiatan:Array.isArray(dashboard.perencanaan)?dashboard.perencanaan:[],loaded:false,loading:false};
+  }
+  async function fetchPaymentRealtimeV1644({renderPage=true,silent=false}={}){
+    if(paymentRealtimeBusyV1644||!currentUser)return false;
+    paymentRealtimeBusyV1644=true;
+    try{
+      const r=await apiPost({action:'getPaymentWorkspaceV138'});
+      if(!r?.success)throw new Error(r?.message||'Gagal memperbarui data pembayaran');
+      paymentWorkspaceV138={...r,loaded:true,loading:false};mergePaymentDashboardV1644();
+      if(typeof renderMenu==='function')renderMenu();
+      if(typeof renderSummary==='function')renderSummary();
+      if(renderPage&&roleV1644()==='PIMPINAN'&&['Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan'].includes(String(activeMenu||'')))renderPimpinanPaymentPageV1644(activeMenu);
+      return true;
+    }catch(e){if(!silent)alert(e?.message||String(e));return false;}
+    finally{paymentRealtimeBusyV1644=false;}
+  }
+  window.refreshPimpinanPaymentsV1644=async function(){
+    const buttons=[...document.querySelectorAll('.pimpinan-payment-refresh-v1644')];
+    buttons.forEach(btn=>{btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Memperbarui...';});
+    try{await fetchPaymentRealtimeV1644({renderPage:true,silent:false});}
+    finally{document.querySelectorAll('.pimpinan-payment-refresh-v1644').forEach(btn=>{btn.disabled=false;btn.textContent=btn.dataset.oldText||'Refresh';});}
+  };
+
+  /* Routing Pimpinan tetap berada pada halaman yang dipilih dan tidak
+     kembali ke Dashboard Monitoring. */
+  if(typeof renderContent==='function'){
+    const renderContentBaseV1644=renderContent;
+    renderContent=function(){
+      if(roleV1644()==='PIMPINAN'&&['Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan'].includes(String(activeMenu||''))){
+        if(!paymentWorkspaceV138?.loaded){
+          hydratePaymentWorkspaceFromDashboardV1644();
+          renderPimpinanPaymentPageV1644(activeMenu);
+          fetchPaymentRealtimeV1644({renderPage:true,silent:true});
+        }else renderPimpinanPaymentPageV1644(activeMenu);
+        return;
+      }
+      return renderContentBaseV1644.apply(this,arguments);
+    };
+  }
+  if(typeof setMenu==='function'){
+    const setMenuBaseV1644=setMenu;
+    setMenu=function(menu){
+      const target=String(menu||'');
+      const result=setMenuBaseV1644.apply(this,arguments);
+      if(roleV1644()==='PIMPINAN'&&['Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan'].includes(target)){
+        activeMenu=target;
+        if(typeof renderMenu==='function')renderMenu();
+        hydratePaymentWorkspaceFromDashboardV1644();
+        renderPimpinanPaymentPageV1644(target);
+        fetchPaymentRealtimeV1644({renderPage:true,silent:true});
+      }
+      return result;
+    };
+  }
+
+  /* Badge antrean langsung diisi dari dashboard saat login, lalu disinkronkan
+     secara ringan dari workspace pembayaran. */
+  function queueCountForRoleV1644(role){
+    const r=upperV1644(role),rows=paymentRowsV1644();
+    if(r==='PIMPINAN')return rows.filter(p=>['MENUNGGU PERSETUJUAN PIMPINAN','MENUNGGU PERINTAH KETUA HARIAN'].includes(upperV1644(p.status_pengajuan))).length;
+    if(r==='VERIFIKATOR_KEUANGAN')return rows.filter(p=>upperV1644(p.status_pengajuan)==='MENUNGGU VERIFIKASI KEUANGAN').length;
+    if(r==='BENDAHARA')return rows.filter(p=>upperV1644(p.status_pengajuan)==='MENUNGGU PEMBAYARAN BENDAHARA').length;
+    return 0;
+  }
+  function queueMenuNameV1644(role){
+    const r=upperV1644(role);if(r==='PIMPINAN')return 'Antrean Persetujuan Pengajuan';if(r==='VERIFIKATOR_KEUANGAN')return 'Antrean Verifikasi';if(r==='BENDAHARA')return 'Antrean Pembayaran Bendahara';return '';
+  }
+  function decorateQueueBadgeV1644(){
+    const role=roleV1644(),menu=queueMenuNameV1644(role);if(!menu)return;
+    const button=[...document.querySelectorAll('#menuNav button')].find(btn=>String(btn.textContent||'').replace(/\s+/g,' ').trim().startsWith(menu));if(!button)return;
+    button.querySelectorAll('.queue-badge-v147,.queue-badge-v149,.queue-badge-v1642,.queue-badge-v1644').forEach(el=>el.remove());
+    const count=queueCountForRoleV1644(role);
+    button.insertAdjacentHTML('beforeend',`<span class="queue-badge-v1642 queue-badge-v1644 ${count>0?'has-count-v1642':'is-zero-v1642'}" aria-label="${count} antrean">${count}</span>`);
+  }
+  if(typeof renderMenu==='function'){
+    const renderMenuBaseV1644=renderMenu;
+    renderMenu=function(){const result=renderMenuBaseV1644.apply(this,arguments);requestAnimationFrame(decorateQueueBadgeV1644);return result;};
+  }
+
+  async function syncPaymentAfterLoginV1644(){
+    if(!currentUser||!['PIMPINAN','VERIFIKATOR_KEUANGAN','BENDAHARA'].includes(roleV1644()))return;
+    hydratePaymentWorkspaceFromDashboardV1644();decorateQueueBadgeV1644();
+    await fetchPaymentRealtimeV1644({renderPage:false,silent:true});decorateQueueBadgeV1644();
+  }
+  if(typeof login==='function'){
+    const loginBaseV1644=login;
+    login=async function(){const result=await loginBaseV1644.apply(this,arguments);if(currentUser)syncPaymentAfterLoginV1644();return result;};
+  }
+  if(typeof window.onload==='function'){
+    const onloadBaseV1644=window.onload;
+    window.onload=async function(){const result=await onloadBaseV1644.apply(this,arguments);if(currentUser)syncPaymentAfterLoginV1644();return result;};
+  }
+  function startPaymentRealtimeV1644(){
+    if(paymentRealtimeTimerV1644)clearInterval(paymentRealtimeTimerV1644);
+    paymentRealtimeTimerV1644=setInterval(()=>{
+      if(!currentUser||document.hidden||!['PIMPINAN','VERIFIKATOR_KEUANGAN','BENDAHARA'].includes(roleV1644()))return;
+      const loading=document.getElementById('loadingOverlay');if(loading&&!loading.classList.contains('hidden'))return;
+      fetchPaymentRealtimeV1644({renderPage:true,silent:true});
+    },60000);
+  }
+  startPaymentRealtimeV1644();
+
+  /* Seluruh TTE pada dokumen pembayaran menampilkan tanggal di dalam kotak
+     dan diposisikan di tengah blok penandatangan. */
+  function paymentSignDateV1644(p,name,role,type){
+    const r=upperV1644(role),n=upperV1644(name);
+    if(r.includes('BENDAHARA'))return p.tanggal_bayar||p.updated_at||p.created_at;
+    if(r.includes('VERIFIKATOR'))return p.tanggal_verifikasi||p.updated_at||p.created_at;
+    if(r.includes('KETUA HARIAN')||n===upperV1644(p.ketua_harian_nama))return p.tanggal_perintah||p.tanggal_persetujuan||p.updated_at||p.created_at;
+    if(r.includes('PIMPINAN')||r.includes('KETUA')||r.includes('SEKRETARIS')||n===upperV1644(p.pimpinan_penyetuju))return p.tanggal_persetujuan||p.tanggal_perintah||p.updated_at||p.created_at;
+    if(['ND_BIDANG','SPTJM'].includes(String(type||''))||n===upperV1644(p.nama_pengaju))return p.tte_bidang_waktu||p.tanggal_diajukan||p.tanggal_nd_bidang||p.updated_at||p.created_at;
+    return p.updated_at||p.created_at||p.tanggal_nd_bidang;
+  }
+  if(typeof printPaymentDocV138==='function'){
+    const printPaymentBaseV1644=printPaymentDocV138;
+    printPaymentDocV138=function(id,type){paymentPrintContextV1644={p:paymentByIdV138(id)||{},type:String(type||'')};try{return printPaymentBaseV1644.apply(this,arguments);}finally{setTimeout(()=>{paymentPrintContextV1644=null;},0);}};
+  }
+  if(typeof paymentSignatureV138==='function'){
+    paymentSignatureV138=function(name,role,signed=true){
+      const ctx=paymentPrintContextV1644||{},p=ctx.p||{},raw=paymentSignDateV1644(p,name,role,ctx.type),date=raw?(formatDate(raw)||String(raw)):'-';
+      return `<div class="payment-signature-v1644" style="text-align:center">${esc(role||'')}<div class="sign-space"></div>${signed?`<div class="tte-box-v139 tte-box-v1644">TTE SIMPROV<span class="tte-time-v139">${esc(date)}</span></div>`:'<div class="tte-pending-v139">Belum ditandatangani elektronik</div>'}<br><b>${esc(name||'[NAMA LENGKAP]')}</b></div>`;
+    };
+  }
+
+  /* Perencanaan User Bidang dan Verifikator PBJ: baris pertama status,
+     baris kedua ringkasan pagu/perencanaan/realisasi. */
+  function assignedBidangV1644(){
+    const raw=currentUser?.bidang_akses;if(Array.isArray(raw))return raw.map(String).filter(Boolean);
+    return String(raw||'').split(/[,;|\n]+/).map(x=>x.trim()).filter(Boolean);
+  }
+  function scopedPlanningV1644(){
+    const rows=Array.isArray(dashboard?.perencanaan)?dashboard.perencanaan:[],role=roleV1644();
+    if(role==='VERIFIKATOR_PBJ'){const ids=assignedBidangV1644();return ids.length?rows.filter(k=>ids.includes(String(k.id_bidang||''))):[];}
+    if(role==='BIDANG'){const id=String(currentUser?.id_bidang||'');return rows.filter(k=>String(k.id_bidang||'')===id);}
+    return rows;
+  }
+  function scopedPaguV1644(plans){
+    const role=roleV1644(),ids=new Set(plans.map(k=>String(k.id_bidang||'')).filter(Boolean));
+    if(role==='VERIFIKATOR_PBJ')assignedBidangV1644().forEach(id=>ids.add(String(id)));
+    if(role==='BIDANG'&&currentUser?.id_bidang)ids.add(String(currentUser.id_bidang));
+    const rekap=Array.isArray(dashboard?.rekap)?dashboard.rekap:[];
+    const fromRekap=rekap.filter(r=>ids.has(String(r.id_bidang||''))).reduce((n,r)=>n+toNumber(r.pagu),0);
+    if(fromRekap>0)return fromRekap;
+    const bidangs=Array.isArray(dashboard?.bidangs)?dashboard.bidangs:(Array.isArray(dashboard?.bidang)?dashboard.bidang:[]);
+    return bidangs.filter(r=>ids.has(String(r.id_bidang||''))).reduce((n,r)=>n+toNumber(r.pagu),0);
+  }
+  function approvedRealTotalV1644(plans){
+    const ids=new Set(plans.map(k=>String(k.id_kegiatan||'')));
+    return (dashboard?.realisasi||[]).reduce((sum,r)=>{
+      const status=upperV1644(r.status);if(!ids.has(String(r.id_kegiatan||''))||status==='DIBATALKAN'||status==='BATAL')return sum;
+      return sum+(FINAL_REAL_STATUSES_V1644.has(status)?toNumber(r.nilai_realisasi):0);
+    },0);
+  }
+  function planningSummaryTwoRowsV1644(){
+    if(String(activeMenu||'')!=='Perencanaan'||!['BIDANG','VERIFIKATOR_PBJ'].includes(roleV1644()))return false;
+    const wrap=document.getElementById('summaryCards');if(!wrap)return false;
+    const plans=scopedPlanningV1644(),up=upperV1644;
+    const approved=plans.filter(k=>['DISETUJUI','DISETUJUI PBJ'].includes(up(k.status_perencanaan))).length;
+    const waiting=plans.filter(k=>up(k.status_perencanaan).includes('DIAJUKAN')||up(k.status_perencanaan).includes('MENUNGGU VERIFIKASI')).length;
+    const repair=plans.filter(k=>up(k.status_perencanaan).includes('PERBAIKAN')||up(k.status_perencanaan).includes('DITOLAK')).length;
+    const pagu=scopedPaguV1644(plans),planning=plans.reduce((n,k)=>n+toNumber(k.jumlah),0),real=approvedRealTotalV1644(plans),sisa=Math.max(0,pagu-real);
+    const card=(label,value)=>`<div class="summary-card summary-card-v159"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+    wrap.className='summary-grid summary-planning-groups-v1644';
+    wrap.innerHTML=`<div class="summary-group-v1644 summary-status-v1644">${card('Total Paket',String(plans.length))}${card('Disetujui',String(approved))}${card('Menunggu Verifikasi',String(waiting))}${card('Perlu Perbaikan',String(repair))}</div><div class="summary-group-v1644 summary-budget-v1644">${card('Total Pagu',rupiah(pagu))}${card('Total Perencanaan',rupiah(planning))}${card('Total Realisasi',rupiah(real))}${card('Sisa Pagu',rupiah(sisa))}</div>`;
+    return true;
+  }
+  if(typeof renderSummary==='function'){
+    const renderSummaryBaseV1644=renderSummary;
+    renderSummary=function(){const result=renderSummaryBaseV1644.apply(this,arguments);planningSummaryTwoRowsV1644();return result;};
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V1644__=PATCH_VERSION_V1644;
+})();
+
+/* =========================================================
+   SIMPROV v164.5 - Fix Refresh Antrean Pimpinan & Reset Layout Card
+   ---------------------------------------------------------
+   Baseline: SIMPROV v164.4.
+   - Refresh Pimpinan selalu mengirim user aktif dan tidak tertahan
+     flag request background lama.
+   - Layout dua baris hanya berlaku pada menu Perencanaan untuk
+     BIDANG/VERIFIKATOR_PBJ. Menu lain dikembalikan ke grid horizontal.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V1645='164.5';
+  let pimpinanRefreshPromiseV1645=null;
+
+  function upperV1645(value){return String(value||'').trim().toUpperCase();}
+  function roleV1645(){return typeof actualRoleV133==='function'?actualRoleV133():upperV1645(currentUser?.role);}
+  function isPlanningTwoRowV1645(){
+    return String(activeMenu||'')==='Perencanaan'&&['BIDANG','VERIFIKATOR_PBJ'].includes(roleV1645());
+  }
+
+  function normalizeSummaryLayoutV1645(){
+    const wrap=document.getElementById('summaryCards');
+    if(!wrap)return;
+    if(isPlanningTwoRowV1645())return;
+
+    /* Class v164.4 sebelumnya tetap menempel saat pindah menu dan membuat
+       seluruh kartu tersusun vertikal. Hapus hanya class khusus Perencanaan. */
+    wrap.classList.remove('summary-planning-groups-v1644');
+
+    /* Pengaman untuk state lama/cached DOM: jika wrapper dua baris masih ada,
+       keluarkan kembali seluruh card ke grid utama tanpa mengubah isi card. */
+    const groups=[...wrap.querySelectorAll(':scope > .summary-group-v1644')];
+    if(groups.length){
+      const fragment=document.createDocumentFragment();
+      groups.forEach(group=>{
+        [...group.children].forEach(card=>fragment.appendChild(card));
+        group.remove();
+      });
+      wrap.appendChild(fragment);
+    }
+
+    wrap.querySelectorAll('.summary-group-v1644,.summary-status-v1644,.summary-budget-v1644').forEach(el=>{
+      el.classList.remove('summary-group-v1644','summary-status-v1644','summary-budget-v1644');
+    });
+  }
+
+  if(typeof renderSummary==='function'){
+    const renderSummaryBaseV1645=renderSummary;
+    renderSummary=function(){
+      const result=renderSummaryBaseV1645.apply(this,arguments);
+      normalizeSummaryLayoutV1645();
+      return result;
+    };
+  }
+
+  if(typeof setMenu==='function'){
+    const setMenuBaseV1645=setMenu;
+    setMenu=function(){
+      const result=setMenuBaseV1645.apply(this,arguments);
+      requestAnimationFrame(normalizeSummaryLayoutV1645);
+      return result;
+    };
+  }
+
+  async function fetchPimpinanWorkspaceV1645(){
+    if(pimpinanRefreshPromiseV1645)return pimpinanRefreshPromiseV1645;
+    pimpinanRefreshPromiseV1645=(async()=>{
+      const response=await apiPost({action:'getPaymentWorkspaceV138',user:currentUser});
+      if(!response?.success)throw new Error(response?.message||'Gagal memperbarui data pengajuan pembayaran.');
+
+      paymentWorkspaceV138={...response,loaded:true,loading:false};
+      if(dashboard){
+        dashboard.pengajuanPembayaranV138=[...(response.pengajuan||[])];
+      }
+
+      if(typeof renderMenu==='function')renderMenu();
+      if(typeof renderSummary==='function')renderSummary();
+      if(roleV1645()==='PIMPINAN'&&['Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan'].includes(String(activeMenu||''))){
+        if(typeof renderPimpinanPaymentPageV1644==='function'){
+          renderPimpinanPaymentPageV1644(activeMenu);
+        }else if(typeof renderContent==='function'){
+          renderContent();
+        }
+      }
+      return true;
+    })().finally(()=>{pimpinanRefreshPromiseV1645=null;});
+    return pimpinanRefreshPromiseV1645;
+  }
+
+  window.refreshPimpinanPaymentsV1644=async function(){
+    const buttons=[...document.querySelectorAll('.pimpinan-payment-refresh-v1644')];
+    buttons.forEach(btn=>{
+      btn.disabled=true;
+      if(!btn.dataset.oldText)btn.dataset.oldText=btn.textContent||'Refresh';
+      btn.textContent='Memperbarui...';
+    });
+    try{
+      await fetchPimpinanWorkspaceV1645();
+      if(typeof showFastCacheNotice==='function')showFastCacheNotice('Data antrean sudah diperbarui.');
+    }catch(error){
+      alert(error?.message||String(error));
+    }finally{
+      document.querySelectorAll('.pimpinan-payment-refresh-v1644').forEach(btn=>{
+        btn.disabled=false;
+        btn.textContent=btn.dataset.oldText||'Refresh';
+      });
+    }
+  };
+
+  window.__SIMPROV_PATCH_VERSION_V1645__=PATCH_VERSION_V1645;
+})();
+
+/* =========================================================
+   SIMPROV v164.7 - Urutan Header Pimpinan dan Bidang
+   ---------------------------------------------------------
+   - Untuk role BIDANG, identitas header memakai:
+     Nama Pimpinan Bidang - Nama Bidang.
+   - Nama pimpinan dibaca dari data bidang yang sama dengan
+     pengaturan "Nama Pimpinan Setiap Bidang" milik Admin.
+   - Role lain tidak diubah.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V1646='164.7';
+
+  function currentRoleV1646(){
+    if(typeof actualRoleV133==='function')return actualRoleV133();
+    return String(currentUser?.role||'').trim().toUpperCase();
+  }
+
+  function currentBidangRecordV1646(){
+    const id=String(currentUser?.id_bidang||'').trim();
+    const rows=Array.isArray(dashboard?.bidangs)
+      ? dashboard.bidangs
+      : (Array.isArray(dashboard?.bidang)?dashboard.bidang:[]);
+    if(id){
+      const found=rows.find(row=>String(row?.id_bidang||'').trim()===id);
+      if(found)return found;
+    }
+    const currentName=String(currentUser?.nama_bidang||currentUser?.bidang||'').trim().toLowerCase();
+    if(currentName){
+      const found=rows.find(row=>String(row?.nama_bidang||'').trim().toLowerCase()===currentName);
+      if(found)return found;
+    }
+    return null;
+  }
+
+  function updateBidangHeaderV1646(){
+    if(!currentUser||currentRoleV1646()!=='BIDANG')return;
+    const info=document.getElementById('userInfo');
+    if(!info)return;
+
+    const bidang=currentBidangRecordV1646();
+    const namaBidang=String(
+      bidang?.nama_bidang||
+      currentUser?.nama_bidang||
+      currentUser?.bidang||
+      currentUser?.nama||
+      currentUser?.id_bidang||
+      '-'
+    ).trim();
+    const namaPimpinan=String(
+      bidang?.nama_pimpinan_bidang||
+      currentUser?.nama_pimpinan_bidang||
+      '-'
+    ).trim();
+
+    info.textContent=`${namaPimpinan||'-'} - ${namaBidang||'-'}`;
+    info.title='Nama pimpinan bidang dan nama bidang sesuai Manajemen Akses';
+  }
+
+  if(typeof renderAll==='function'){
+    const renderAllBaseV1646=renderAll;
+    renderAll=function(){
+      const result=renderAllBaseV1646.apply(this,arguments);
+      updateBidangHeaderV1646();
+      return result;
+    };
+  }
+
+  /* Pengaman ketika data dashboard selesai dimuat secara asinkron tetapi
+     render utama tidak dipanggil ulang oleh patch lama. */
+  if(typeof loadDashboard==='function'){
+    const loadDashboardBaseV1646=loadDashboard;
+    loadDashboard=async function(){
+      const result=await loadDashboardBaseV1646.apply(this,arguments);
+      updateBidangHeaderV1646();
+      return result;
+    };
+  }
+
+  window.updateBidangHeaderV1646=updateBidangHeaderV1646;
+  window.__SIMPROV_PATCH_VERSION_V1646__=PATCH_VERSION_V1646;
+})();
+
+
+/* =========================================================
+   SIMPROV v164.8 - Alur Pembayaran Ketua Harian
+   ---------------------------------------------------------
+   - Persetujuan struktural dilakukan manual dan diunggah.
+   - Role PIMPINAN digunakan khusus untuk Ketua Harian.
+   - Alur sistem: Bidang -> Ketua Harian -> Verifikator
+     Keuangan -> Bendahara -> Selesai.
+   - Data lama tetap dapat dibuka.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V1648='164.8';
+  const STRUCTURAL_DOC_V1648='Lembar Persetujuan Struktural';
+
+  function upperV1648(v){return String(v||'').trim().toUpperCase();}
+  function uniqueV1648(list){return [...new Set((list||[]).filter(Boolean))];}
+  function paymentNeedsStructuralV1648(p){
+    const status=upperV1648(p?.status_pengajuan||'DRAFT');
+    return String(p?.wajib_persetujuan_struktural||'')==='1'||['DRAFT','PERBAIKAN BIDANG'].includes(status);
+  }
+  function paymentDocTypesV1648(){
+    const base=Array.isArray(PAYMENT_DOC_TYPES_V138)?PAYMENT_DOC_TYPES_V138:[];
+    return uniqueV1648([STRUCTURAL_DOC_V1648,...base]);
+  }
+
+  const paymentRequiredDocsBaseV1648=paymentRequiredDocsV138;
+  paymentRequiredDocsV138=function(p){
+    const docs=uniqueV1648(paymentRequiredDocsBaseV1648(p));
+    if(paymentNeedsStructuralV1648(p)&&!docs.some(x=>paymentDocKeyV138(x)===paymentDocKeyV138(STRUCTURAL_DOC_V1648)))docs.unshift(STRUCTURAL_DOC_V1648);
+    return docs;
+  };
+
+  paymentUploadRowsV138=function(p){
+    const docs=paymentDocsV138(p.id_pengajuan);
+    return paymentDocTypesV1648().map(j=>{
+      const list=docs.filter(d=>paymentDocKeyV138(d.jenis_dokumen)===paymentDocKeyV138(j));
+      const required=paymentRequiredDocsV138(p).some(x=>paymentDocKeyV138(x)===paymentDocKeyV138(j));
+      const note=j===STRUCTURAL_DOC_V1648?'<small class="panel-sub">PDF yang sudah ditandatangani pejabat struktural sesuai bidang.</small>':'';
+      return `<tr><td>${esc(j)} ${required?'<b class="required-v138">*</b>':''}${note}</td><td>${list.length?list.map(d=>`<a href="${esc(d.url_file)}" target="_blank" rel="noopener">${esc(d.nama_file||'Buka Dokumen Asli')}</a>`).join('<br>'):'Belum diunggah'}</td><td><input type="file" class="payment-file-v138" data-jenis="${esc(j)}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"></td></tr>`;
+    }).join('');
+  };
+
+  paymentOriginalDocsV138=function(p){
+    const docs=paymentDocsV138(p.id_pengajuan);
+    return `<div class="payment-doc-grid-v138">${paymentDocTypesV1648().map(j=>{
+      const list=docs.filter(d=>paymentDocKeyV138(d.jenis_dokumen)===paymentDocKeyV138(j));
+      const required=paymentRequiredDocsV138(p).some(x=>paymentDocKeyV138(x)===paymentDocKeyV138(j));
+      return `<article><div><b>${esc(j)}</b>${required?'<small class="required-v138">Wajib</small>':'<small>Opsional</small>'}</div>${list.length?list.map(d=>`<a class="btn-soft" href="${esc(d.url_file)}" target="_blank" rel="noopener">Buka Dokumen Asli</a>`).join(''):'<span class="muted">Belum diunggah</span>'}</article>`;
+    }).join('')}</div>`;
+  };
+
+  paymentStatusLabelV138=function(status){
+    const s=upperV1648(status||'DRAFT');
+    const labels={
+      'DRAFT':'DRAFT',
+      'PERBAIKAN BIDANG':'PERLU PERBAIKAN',
+      'MENUNGGU PERSETUJUAN PIMPINAN':'MENUNGGU PERSETUJUAN KETUA HARIAN',
+      'MENUNGGU PERINTAH KETUA HARIAN':'MENUNGGU PERSETUJUAN KETUA HARIAN',
+      'MENUNGGU VERIFIKASI KEUANGAN':'MENUNGGU VERIFIKASI KEUANGAN',
+      'MENUNGGU PEMBAYARAN BENDAHARA':'MENUNGGU PEMBAYARAN BENDAHARA',
+      'SELESAI':'SELESAI'
+    };
+    return labels[s]||s.replace(/_/g,' ');
+  };
+
+  paymentTimelineV138=function(p){
+    const status=upperV1648(p?.status_pengajuan||'DRAFT');let step=1;
+    if(['MENUNGGU PERSETUJUAN PIMPINAN','MENUNGGU PERINTAH KETUA HARIAN'].includes(status))step=2;
+    else if(status==='MENUNGGU VERIFIKASI KEUANGAN')step=3;
+    else if(status==='MENUNGGU PEMBAYARAN BENDAHARA')step=4;
+    else if(status==='SELESAI')step=5;
+    else if(status.includes('PERBAIKAN'))step=1;
+    const labels=['Bidang','Ketua Harian','Verifikator Keuangan','Bendahara','Selesai'];
+    return `<div class="payment-timeline-v138 payment-timeline-v146">${labels.map((x,i)=>`<div class="${i+1<step?'done':i+1===step?'active':''}"><span>${i+1}</span><b>${x}</b></div>`).join('')}</div>`;
+  };
+
+  function validateStoredPaymentV1648(p){
+    if(!p)return 'Pengajuan tidak ditemukan.';
+    const missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+    if(missing.length)return 'Dokumen wajib belum lengkap:\n- '+missing.join('\n- ');
+    const rincian=parseJsonV138(p.rincian_json),rekening=parseJsonV138(p.rekening_json),amount=toNumber(p.jumlah_pengajuan),rt=paymentTotalRincianV138(rincian),at=paymentTotalRincianV138(rekening);
+    if(!rincian.length)return 'Minimal satu rincian penggunaan anggaran wajib diisi.';
+    if(!rekening.length)return 'Minimal satu rekening penerima wajib diisi.';
+    if(Math.abs(rt-amount)>0.5)return 'Total rincian belanja harus sama dengan jumlah pengajuan.';
+    if(Math.abs(at-amount)>0.5)return 'Total rekening tujuan harus sama dengan jumlah pengajuan.';
+    return '';
+  }
+
+  async function savePaymentFormBeforeSubmitV1648(id){
+    const data=collectPaymentFormV138();
+    const act=(paymentWorkspaceV138.kegiatan||[]).find(k=>String(k.id_kegiatan)===String(data.id_kegiatan));
+    const budget=toNumber(act?.jumlah||0),rincianTotal=paymentTotalRincianV138(data.rincian),rekeningTotal=paymentTotalRincianV138(data.rekening);
+    if(!data.id_kegiatan)throw new Error('Pilih kegiatan terlebih dahulu.');
+    if(!data.rincian.length)throw new Error('Isi minimal satu rincian penggunaan anggaran.');
+    if(budget>0&&rincianTotal>budget)throw new Error(`Jumlah pengajuan ${rupiah(rincianTotal)} melebihi pagu kegiatan ${rupiah(budget)}.`);
+    if(!data.rekening.length||Math.abs(rekeningTotal-rincianTotal)>0.5)throw new Error('Total rekening tujuan harus sama dengan jumlah pengajuan.');
+    const save=await apiPost({action:'savePaymentDraftV138',user:currentUser,data});
+    if(!save.success)throw new Error(save.message||'Gagal menyimpan pengajuan');
+    const savedId=save.id_pengajuan||id;paymentEditIdV138=savedId;
+    if(save.pengajuan){
+      const other=(paymentWorkspaceV138.pengajuan||[]).filter(x=>String(x.id_pengajuan)!==String(savedId));
+      paymentWorkspaceV138.pengajuan=[...other,save.pengajuan];
+    }
+    return savedId;
+  }
+
+  async function sendPaymentToKetuaHarianV1648(id){
+    const r=await apiPost({action:'submitPaymentV138',user:currentUser,id_pengajuan:id});
+    if(!r.success)throw new Error(r.message||'Gagal mengajukan pembayaran');
+    const p=paymentByIdV138(id);
+    if(p){
+      p.status_pengajuan='MENUNGGU PERSETUJUAN PIMPINAN';
+      p.tahap_aktif='PIMPINAN';
+      p.wajib_persetujuan_struktural='1';
+      p.tte_bidang_oleh=r.tte_bidang_oleh||currentUser?.nama||'';
+      p.tte_bidang_waktu=r.tte_bidang_waktu||new Date().toISOString();
+      p.updated_at=new Date().toISOString();
+    }
+    paymentTabV138='DAFTAR';paymentEditIdV138='';renderPaymentWorkspaceV138();
+    showFastCacheNotice(r.message||'Pengajuan dikirim kepada Ketua Harian.');
+    setTimeout(()=>loadPaymentWorkspaceV138(true),150);
+  }
+
+  window.submitPaymentFromListV145=async function(id){
+    const p=paymentByIdV138(id),err=validateStoredPaymentV1648(p);if(err)return alert(err);
+    const ok=await confirmActionV133({title:'Ajukan kepada Ketua Harian',message:'Pastikan Lembar Persetujuan Struktural dan dokumen wajib sudah lengkap. Nota Dinas Bidang dan SPTJM akan ditandatangani elektronik.',confirmText:'Ya, Ajukan'});if(!ok)return;
+    showLoading('Mengajukan kepada Ketua Harian...');
+    try{await sendPaymentToKetuaHarianV1648(id);}catch(e){alert(e.message||String(e));}finally{hideLoading();}
+  };
+
+  window.submitPaymentFormV145=async function(id){
+    const p=paymentByIdV138(id),missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+    if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+    const ok=await confirmActionV133({title:'Simpan dan Ajukan kepada Ketua Harian',message:'Perubahan terakhir akan disimpan. Pastikan Lembar Persetujuan Struktural sudah diunggah.',confirmText:'Ya, Simpan & Ajukan'});if(!ok)return;
+    showLoading('Menyimpan dan mengajukan kepada Ketua Harian...');
+    try{const savedId=await savePaymentFormBeforeSubmitV1648(id);await sendPaymentToKetuaHarianV1648(savedId);}catch(e){alert(e.message||String(e));}finally{hideLoading();}
+  };
+
+  submitPaymentV138=async function(id){
+    if(document.getElementById('payActivityV138'))return window.submitPaymentFormV145(id);
+    return window.submitPaymentFromListV145(id);
+  };
+
+  window.approvePaymentSimpleV146=async function(id,decision){
+    let note='';
+    if(decision==='KEMBALIKAN'){note=prompt('Alasan pengembalian kepada Bidang:')||'';if(!note.trim())return;}
+    const ok=await confirmActionV133({title:decision==='SETUJUI'?'Setujui Pengajuan Pembayaran':'Kembalikan Pengajuan',message:decision==='SETUJUI'?'Pengajuan akan disetujui oleh Ketua Harian dan diteruskan kepada Verifikator Keuangan.':'Pengajuan dikembalikan kepada Bidang untuk diperbaiki.',confirmText:decision==='SETUJUI'?'Ya, Setujui & Teruskan':'Ya, Kembalikan',danger:decision==='KEMBALIKAN'});if(!ok)return;
+    showLoading(decision==='SETUJUI'?'Menyetujui pengajuan...':'Mengembalikan pengajuan...');
+    try{
+      const r=await apiPost({action:'approvePaymentV138',user:currentUser,id_pengajuan:id,keputusan:decision,catatan:note});
+      if(!r.success)throw new Error(r.message||'Gagal memproses persetujuan');
+      await loadPaymentWorkspaceV138(true);renderPaymentWorkspaceV138();showFastCacheNotice(r.message||'Pengajuan berhasil diproses.');
+    }catch(e){alert(e.message||String(e));}finally{hideLoading();}
+  };
+
+  paymentActionButtonsV138=function(p){
+    const role=actualRoleV133(),s=upperV1648(p.status_pengajuan),out=[];
+    if((role==='BIDANG'||role==='ADMIN')&&['DRAFT','PERBAIKAN BIDANG'].includes(s))out.push(`<button onclick="openPaymentFormV138('${esc(p.id_pengajuan)}')">Edit & Lengkapi</button>`,`<button class="btn-green" onclick="submitPaymentFromListV145('${esc(p.id_pengajuan)}')">TTE & Ajukan ke Ketua Harian</button>`,`<button class="btn-danger" onclick="deletePaymentV138('${esc(p.id_pengajuan)}')">Hapus Pengajuan</button>`);
+    if((role==='PIMPINAN'||role==='ADMIN')&&['MENUNGGU PERSETUJUAN PIMPINAN','MENUNGGU PERINTAH KETUA HARIAN'].includes(s))out.push(`<button class="btn-danger" onclick="approvePaymentSimpleV146('${esc(p.id_pengajuan)}','KEMBALIKAN')">Kembalikan</button>`,`<button class="btn-green" onclick="approvePaymentSimpleV146('${esc(p.id_pengajuan)}','SETUJUI')">Setujui & Teruskan</button>`);
+    if((role==='VERIFIKATOR_KEUANGAN'||role==='ADMIN')&&s==='MENUNGGU VERIFIKASI KEUANGAN')out.push(`<button class="btn-danger" onclick="verifyPaymentV138('${esc(p.id_pengajuan)}','KEMBALIKAN')">Kembalikan</button>`,`<button class="btn-green" onclick="verifyPaymentV138('${esc(p.id_pengajuan)}','VALID')">Valid & Teruskan ke Bendahara</button>`);
+    if((role==='BENDAHARA'||role==='ADMIN')&&s==='MENUNGGU PEMBAYARAN BENDAHARA')out.push(`<button class="btn-green" onclick="completePaymentModalV138('${esc(p.id_pengajuan)}')">Catat Pembayaran</button>`);
+    return `<div class="action-group payment-actions-v138">${out.join('')}</div>`;
+  };
+
+  const paymentListBaseV1648=paymentListV138;
+  paymentListV138=function(){
+    let html=paymentListBaseV1648.apply(this,arguments);
+    return String(html)
+      .replace(/Pimpinan\/Ketua Harian/g,'Ketua Harian')
+      .replace(/Antrean Persetujuan Pimpinan/g,'Antrean Persetujuan Ketua Harian')
+      .replace(/persetujuan Pimpinan\/Ketua Harian/g,'persetujuan Ketua Harian');
+  };
+
+  const paymentFormBaseV1648=paymentFormV138;
+  paymentFormV138=function(){
+    let html=paymentFormBaseV1648.apply(this,arguments);
+    html=String(html).replace('<h3>Dokumen Pendukung</h3>','<h3>Dokumen Pendukung</h3><p class="panel-sub"><b>Lembar Persetujuan Struktural wajib diunggah.</b> Gunakan PDF yang sudah ditandatangani pejabat sesuai jalur bidang.</p>');
+    return html;
+  };
+
+  const printPaymentDocBaseV1648=printPaymentDocV138;
+  printPaymentDocV138=function(id,type){
+    if(String(type||'').toUpperCase()!=='VERIFIKASI')return printPaymentDocBaseV1648.apply(this,arguments);
+    const p=paymentByIdV138(id);if(!p)return alert('Pengajuan tidak ditemukan.');
+    const bidang=(paymentWorkspaceV138.bidang||[]).find(b=>String(b.id_bidang)===String(p.id_bidang));
+    const bidangNameText=bidang?.nama_bidang||p.id_bidang||'-',amount=toNumber(p.jumlah_pengajuan),terbilang=p.terbilang||numberWordsV138(amount);
+    const required=[
+      ['Nota Dinas Permohonan Pembayaran dari Kepala Bidang/Bagian',true],
+      [STRUCTURAL_DOC_V1648,!!paymentDocV138(p,STRUCTURAL_DOC_V1648),'Sudah ditandatangani pejabat struktural'],
+      ['Invoice Tagihan',!!paymentDocV138(p,'Invoice Tagihan')],
+      ['Kuitansi / Tanda Terima Pembayaran (bermaterai jika memenuhi syarat)',String(p.reimbursement)!=='1'||!!paymentDocV138(p,'Kuitansi/Tanda Terima Pembayaran'),String(p.reimbursement)==='1'?'Wajib untuk reimbursement':'Tidak dipersyaratkan'],
+      ['Daftar Hadir / Absensi',!!paymentDocV138(p,'Daftar Hadir/Absensi')],
+      ['Fotokopi NPWP & KTP Penerima',!!paymentDocV138(p,'Fotokopi NPWP & KTP Penerima')],
+      ['Rekening Bank Penerima',!!paymentDocV138(p,'Rekening Bank Penerima')],
+      ['LPJ Kegiatan/Foto Dokumentasi',!!paymentDocV138(p,'LPJ Kegiatan/Foto Dokumentasi')],
+      ['Surat Pernyataan Tanggungjawab Mutlak',true],
+      ['Dokumen Pendukung Lain (jika ada)',!!paymentDocV138(p,'Dokumen Pendukung Lain')]
+    ];
+    const body=`<h1 class="doc-title">LEMBAR VERIFIKASI PERMOHONAN PEMBAYARAN</h1><h3 class="center">PB KOTA BOGOR PEKAN OLAHRAGA PROVINSI JAWA BARAT XV 2026</h3><h4>I. IDENTITAS PEMOHON</h4><ul><li>Nama Bidang/Bagian: ${esc(bidangNameText)}</li><li>Nama Kegiatan/Uraian: ${esc(p.nama_kegiatan||'-')}</li><li>Nomor Pengajuan Surat: ${esc(p.nomor_nd_bidang||'-')}</li><li>Tanggal Pengajuan: ${esc(formatDate(p.tanggal_nd_bidang)||'-')}</li><li>Jumlah Anggaran yang Diajukan: ${rupiah(amount)}<br>(Terbilang: ${esc(terbilang)})</li></ul><h4>II. CHECKLIST KELENGKAPAN DOKUMEN (Diperiksa oleh Verifikator Keuangan)</h4><table class="check-table"><thead><tr><th>No.</th><th>Jenis Dokumen Kelengkapan</th><th>Ada</th><th>Tidak Ada</th><th>Catatan</th></tr></thead><tbody>${required.map((x,i)=>`<tr><td class="center">${i+1}</td><td>${esc(x[0])}</td><td class="center">${x[1]?'✓':''}</td><td class="center">${x[1]?'':'✓'}</td><td>${esc(x[2]||(x[1]?'Lengkap':'-'))}</td></tr>`).join('')}</tbody></table><h4>III. HASIL VERIFIKASI DAN REKOMENDASI</h4><p>☒ BERKAS LENGKAP DAN SAH</p><p>☐ DITUNDA / DIKEMBALIKAN</p><p>Alasan Pengembalian: ${esc(p.catatan_verifikasi||'-')}</p><div class="sign-two"><div>PB PORPROV JAWA BARAT XV TAHUN 2026<br>${paymentSignatureV138(p.verifikator_nama,p.verifikator_jabatan||'VERIFIKATOR KEUANGAN',!!p.verifikator_nama)}</div><div>SETUJU DIBAYAR<br>${paymentSignatureV138(p.pimpinan_penyetuju||'[NAMA LENGKAP]','KETUA HARIAN',!!p.pimpinan_penyetuju)}</div></div>`;
+    const w=window.open('about:blank','_blank');if(!w)return alert('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
+    w.document.open();w.document.write(paymentPrintShellV138('Lembar Verifikasi Permohonan Pembayaran',body));w.document.close();
+  };
+
+  function updateKetuaHarianHeaderV1648(){
+    if(!currentUser||actualRoleV133()!=='PIMPINAN')return;
+    const info=document.getElementById('userInfo');if(!info)return;
+    info.textContent=`${currentUser.nama||currentUser.username||'Ketua Harian'} - Ketua Harian`;
+    info.title='Akun Ketua Harian';
+  }
+
+  if(typeof renderAll==='function'){
+    const renderAllBaseV1648=renderAll;
+    renderAll=function(){const result=renderAllBaseV1648.apply(this,arguments);updateKetuaHarianHeaderV1648();return result;};
+  }
+  if(typeof loadDashboard==='function'){
+    const loadDashboardBaseV1648=loadDashboard;
+    loadDashboard=async function(){const result=await loadDashboardBaseV1648.apply(this,arguments);updateKetuaHarianHeaderV1648();return result;};
+  }
+  if(typeof renderPaymentWorkspaceV138==='function'){
+    const renderPaymentBaseV1648=renderPaymentWorkspaceV138;
+    renderPaymentWorkspaceV138=function(){
+      const result=renderPaymentBaseV1648.apply(this,arguments);
+      requestAnimationFrame(()=>{
+        document.querySelectorAll('.payment-sop-note-v138').forEach(el=>el.innerHTML='<b>Alur di Sistem:</b> Bidang mengunggah persetujuan struktural → Ketua Harian menyetujui → Verifikator Keuangan memeriksa → Bendahara membayar.');
+      });
+      return result;
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V1648__=PATCH_VERSION_V1648;
+})();
+
+/* SIMPROV v164.8.1 - Nota Dinas langsung kepada Ketua Harian */
+(function(){
+  'use strict';
+  const printPaymentDocBaseV16481=printPaymentDocV138;
+  printPaymentDocV138=function(id,type){
+    if(String(type||'').toUpperCase()!=='ND_BIDANG')return printPaymentDocBaseV16481.apply(this,arguments);
+    const p=paymentByIdV138(id);if(!p)return alert('Pengajuan tidak ditemukan.');
+    const bidang=(paymentWorkspaceV138.bidang||[]).find(b=>String(b.id_bidang)===String(p.id_bidang));
+    const bidangNameText=bidang?.nama_bidang||p.id_bidang||'-';
+    const rincian=parseJsonV138(p.rincian_json),amount=toNumber(p.jumlah_pengajuan),terbilang=p.terbilang||numberWordsV138(amount),lampCount=paymentDocsV138(id).length+2;
+    const body=`<h1 class="doc-title">NOTA DINAS PERMOHONAN PEMBAYARAN</h1><table class="meta"><tr><td>Kepada Yth</td><td>:</td><td>Ketua Harian PB Porprov</td></tr><tr><td>Dari</td><td>:</td><td>${esc(p.jabatan_pengaju||'Kepala Bidang/Bagian')}</td></tr><tr><td>Nomor</td><td>:</td><td>${esc(p.nomor_nd_bidang||'-')}</td></tr><tr><td>Tanggal</td><td>:</td><td>${esc(formatDate(p.tanggal_nd_bidang)||'-')}</td></tr><tr><td>Sifat</td><td>:</td><td>${esc(p.sifat||'Penting')}</td></tr><tr><td>Lampiran</td><td>:</td><td>${lampCount} Lembar</td></tr><tr><td>Perihal</td><td>:</td><td>Permohonan Pembayaran Kegiatan ${esc(p.nama_kegiatan||'-')}</td></tr></table><div class="body"><p>Dengan hormat,</p><p>Bersama ini kami mengajukan pembayaran kegiatan ${esc(p.nama_kegiatan||'-')} pada Bidang/Bagian ${esc(bidangNameText)} sebesar <b>${rupiah(amount)}</b> (${esc(terbilang)}).</p><table class="meta"><tr><td>Hari / Tanggal</td><td>:</td><td>${esc(p.hari_tanggal_kegiatan||'-')}</td></tr><tr><td>Tempat</td><td>:</td><td>${esc(p.tempat_kegiatan||'-')}</td></tr></table><p>Rincian penggunaan anggaran:</p><table class="simple-table"><thead><tr><th>No.</th><th>Rincian Belanja</th><th>Jumlah</th></tr></thead><tbody>${rincian.map((x,i)=>`<tr><td class="center">${i+1}</td><td>${esc(x.uraian||'-')}</td><td>${rupiah(x.jumlah)}</td></tr>`).join('')}<tr><th colspan="2">Total</th><th>${rupiah(amount)}</th></tr></tbody></table><p>Dokumen yang dilampirkan:</p><ol class="doc-links"><li>${paymentAttachmentLinkV138(p,'Lembar Persetujuan Struktural','Lembar Persetujuan Struktural')}</li><li>${paymentAttachmentLinkV138(p,'Invoice Tagihan','Invoice Tagihan')}</li><li>${paymentAttachmentLinkV138(p,'Kuitansi/Tanda Terima Pembayaran','Kuitansi/Tanda Terima Pembayaran')}</li><li>${paymentAttachmentLinkV138(p,'Daftar Hadir/Absensi','Daftar Hadir/Absensi')}</li><li>${paymentAttachmentLinkV138(p,'Fotokopi NPWP & KTP Penerima','Fotokopi NPWP & KTP Penerima')}</li><li>${paymentAttachmentLinkV138(p,'Rekening Bank Penerima','Rekening Bank Penerima')}</li><li>${paymentAttachmentLinkV138(p,'LPJ Kegiatan/Foto Dokumentasi','LPJ Kegiatan/Foto Dokumentasi')}</li><li>Surat Pernyataan Tanggung Jawab Mutlak</li></ol><p>Demikian permohonan ini disampaikan untuk mendapat persetujuan.</p></div><div class="sign-right">Bogor, ${esc(formatDate(p.tanggal_nd_bidang)||'........ 2026')}<br>PB PORPROV JAWA BARAT XV TAHUN 2026<br>${paymentSignatureV138(p.nama_pengaju,p.jabatan_pengaju,true)}</div>`;
+    const w=window.open('about:blank','_blank');if(!w)return alert('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
+    w.document.open();w.document.write(paymentPrintShellV138('Nota Dinas Permohonan Pembayaran',body));w.document.close();
+  };
+})();
+
+/* SIMPROV v164.8.2 - Teks pembayaran ringkas */
+(function(){
+  'use strict';
+  if(typeof renderPaymentWorkspaceV138!=='function')return;
+  const renderPaymentTextBaseV16482=renderPaymentWorkspaceV138;
+  renderPaymentWorkspaceV138=function(){
+    const result=renderPaymentTextBaseV16482.apply(this,arguments);
+    requestAnimationFrame(()=>{
+      const head=document.querySelector('.payment-head-v138 .panel-sub');
+      if(head)head.textContent='Nota Dinas Bidang, SPTJM, persetujuan struktural, verifikasi keuangan, dan bukti pembayaran tercatat di SIMPROV.';
+      document.querySelectorAll('#contentArea h3,#contentArea p,#contentArea small,#contentArea span').forEach(el=>{
+        if(el.children.length)return;
+        const text=String(el.textContent||'');
+        if(text.includes('Pimpinan/Ketua Harian'))el.textContent=text.replace(/Pimpinan\/Ketua Harian/g,'Ketua Harian');
+        if(text.includes('persetujuan Pimpinan'))el.textContent=text.replace(/persetujuan Pimpinan/g,'persetujuan Ketua Harian');
+      });
+    });
+    return result;
+  };
+})();
+
+/* =========================================================
+   SIMPROV v164.9 - Lembar Verifikasi Permohonan Pembayaran TTD
+   ---------------------------------------------------------
+   - Nama dokumen wajib memakai nama format resmi.
+   - Dokumen lama tetap dibaca sebagai dokumen yang sama.
+   - Template cetak ditandatangani manual oleh pejabat struktural.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V1649='164.9';
+  const VERIFICATION_TTD_V1649='Lembar Verifikasi Permohonan Pembayaran TTD';
+  const LEGACY_STRUCTURAL_V1649='Lembar Persetujuan Struktural';
+
+  function keyV1649(value){return paymentDocKeyV138(value);}
+  function isVerificationTtdV1649(value){
+    const key=keyV1649(value);
+    return key===keyV1649(VERIFICATION_TTD_V1649)||key===keyV1649(LEGACY_STRUCTURAL_V1649);
+  }
+  function uniqueV1649(list){
+    const out=[],seen=new Set();
+    (list||[]).forEach(value=>{
+      const normalized=isVerificationTtdV1649(value)?VERIFICATION_TTD_V1649:value;
+      const key=keyV1649(normalized);
+      if(normalized&&!seen.has(key)){seen.add(key);out.push(normalized);}
+    });
+    return out;
+  }
+  function paymentDocTypesV1649(){
+    const base=Array.isArray(PAYMENT_DOC_TYPES_V138)?PAYMENT_DOC_TYPES_V138:[];
+    return uniqueV1649([VERIFICATION_TTD_V1649,...base.filter(x=>!isVerificationTtdV1649(x))]);
+  }
+  function docsForTypeV1649(docs,jenis){
+    return (docs||[]).filter(doc=>isVerificationTtdV1649(jenis)?isVerificationTtdV1649(doc.jenis_dokumen):keyV1649(doc.jenis_dokumen)===keyV1649(jenis));
+  }
+
+  const paymentDocBaseV1649=paymentDocV138;
+  paymentDocV138=function(p,jenis){
+    if(isVerificationTtdV1649(jenis)){
+      return paymentDocBaseV1649(p,VERIFICATION_TTD_V1649)||paymentDocBaseV1649(p,LEGACY_STRUCTURAL_V1649);
+    }
+    return paymentDocBaseV1649(p,jenis);
+  };
+
+  const paymentRequiredBaseV1649=paymentRequiredDocsV138;
+  paymentRequiredDocsV138=function(p){return uniqueV1649(paymentRequiredBaseV1649(p));};
+
+  paymentUploadRowsV138=function(p){
+    const docs=paymentDocsV138(p.id_pengajuan),requiredDocs=paymentRequiredDocsV138(p);
+    return paymentDocTypesV1649().map(jenis=>{
+      const list=docsForTypeV1649(docs,jenis);
+      const required=requiredDocs.some(x=>keyV1649(x)===keyV1649(jenis));
+      const note=isVerificationTtdV1649(jenis)
+        ?'<small class="panel-sub">Unggah PDF yang sudah ditandatangani Wakil Ketua/Wakil Sekretaris dan Ketua/Sekretaris Umum sesuai bidang.</small>'
+        :'';
+      return `<tr><td>${esc(jenis)} ${required?'<b class="required-v138">*</b>':''}${note}</td><td>${list.length?list.map(d=>`<a href="${esc(d.url_file)}" target="_blank" rel="noopener">${esc(d.nama_file||'Buka Dokumen Asli')}</a>`).join('<br>'):'Belum diunggah'}</td><td><input type="file" class="payment-file-v138" data-jenis="${esc(jenis)}" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"></td></tr>`;
+    }).join('');
+  };
+
+  paymentOriginalDocsV138=function(p){
+    const docs=paymentDocsV138(p.id_pengajuan),requiredDocs=paymentRequiredDocsV138(p);
+    return `<div class="payment-doc-grid-v138">${paymentDocTypesV1649().map(jenis=>{
+      const list=docsForTypeV1649(docs,jenis);
+      const required=requiredDocs.some(x=>keyV1649(x)===keyV1649(jenis));
+      return `<article><div><b>${esc(jenis)}</b>${required?'<small class="required-v138">Wajib</small>':'<small>Opsional</small>'}</div>${list.length?list.map(d=>`<a class="btn-soft" href="${esc(d.url_file)}" target="_blank" rel="noopener">Buka Dokumen Asli</a>`).join(''):'<span class="muted">Belum diunggah</span>'}</article>`;
+    }).join('')}</div>`;
+  };
+
+  function structuralGroupV1649(name){
+    const value=String(name||'').toLowerCase();
+    if(/kesekretariatan/.test(value))return {leaderKey:'ketua_harian',leaderLabel:'Ketua Harian',deputyKey:'wakil_ketua_harian',deputyLabel:'Wakil Ketua Harian'};
+    if(/penyiaran|pelayanan media|akomodasi|konsumsi|pengarahan massa|kesehatan/.test(value))return {leaderKey:'ketua_i',leaderLabel:'Ketua I',deputyKey:'wakil_ketua_i',deputyLabel:'Wakil Ketua I'};
+    if(/organisasi|hukum|keamanan|transportasi/.test(value))return {leaderKey:'ketua_ii',leaderLabel:'Ketua II',deputyKey:'wakil_ketua_ii',deputyLabel:'Wakil Ketua II'};
+    if(/pertandingan|perwasitan|sarana|prasarana pertandingan|teknologi informasi|komunikasi/.test(value))return {leaderKey:'ketua_iii',leaderLabel:'Ketua III',deputyKey:'wakil_ketua_iii',deputyLabel:'Wakil Ketua III'};
+    if(/kerjasama|usaha|pengadaan barang|pengadaan jasa/.test(value))return {leaderKey:'sekretaris_umum',leaderLabel:'Sekretaris Umum',deputyKey:'wakil_sekretaris',deputyLabel:'Wakil Sekretaris'};
+    return {leaderKey:'ketua_umum',leaderLabel:'Ketua Bidang',deputyKey:'',deputyLabel:'Wakil Ketua/Wakil Sekretaris'};
+  }
+  function manualSignV1649(label,name){
+    return `<div><b>${esc(label)}</b><div class="sign-space"></div><b><u>${esc(name||'(........................................)')}</u></b></div>`;
+  }
+
+  const printPaymentBaseV1649=printPaymentDocV138;
+  printPaymentDocV138=function(id,type){
+    const docType=String(type||'').toUpperCase();
+    const p=paymentByIdV138(id);
+    if(!p)return alert('Pengajuan tidak ditemukan.');
+
+    if(docType==='VERIFIKASI'){
+      const bidang=(paymentWorkspaceV138.bidang||[]).find(b=>String(b.id_bidang)===String(p.id_bidang));
+      const bidangName=bidang?.nama_bidang||p.id_bidang||'-';
+      const identity=paymentWorkspaceV138.identity||dashboard?.systemIdentity||{};
+      const group=structuralGroupV1649(bidangName);
+      const deputyName=group.deputyKey?identity[group.deputyKey]||'':'';
+      const leaderName=identity[group.leaderKey]||'';
+      const amount=toNumber(p.jumlah_pengajuan),terbilang=p.terbilang||numberWordsV138(amount);
+      const required=[
+        ['Nota Dinas Permohonan Pembayaran dari Kepala Bidang/Bagian',true],
+        ['Invoice Tagihan',!!paymentDocV138(p,'Invoice Tagihan')],
+        ['Kuitansi / Tanda Terima Pembayaran',String(p.reimbursement)!=='1'||!!paymentDocV138(p,'Kuitansi/Tanda Terima Pembayaran'),String(p.reimbursement)==='1'?'Wajib untuk reimbursement':'Tidak dipersyaratkan'],
+        ['Daftar Hadir / Absensi',!!paymentDocV138(p,'Daftar Hadir/Absensi')],
+        ['Fotokopi NPWP & KTP Penerima',!!paymentDocV138(p,'Fotokopi NPWP & KTP Penerima')],
+        ['Rekening Bank Penerima',!!paymentDocV138(p,'Rekening Bank Penerima')],
+        ['LPJ Kegiatan / Foto Dokumentasi',!!paymentDocV138(p,'LPJ Kegiatan/Foto Dokumentasi')],
+        ['Surat Pernyataan Tanggung Jawab Mutlak',true],
+        ['Dokumen Pendukung Lain (jika ada)',!!paymentDocV138(p,'Dokumen Pendukung Lain')]
+      ];
+      const dateText=formatDate(p.tanggal_nd_bidang)||'........................ 2026';
+      const body=`<h1 class="doc-title">LEMBAR VERIFIKASI PERMOHONAN PEMBAYARAN</h1><h3 class="center">PB KOTA BOGOR PEKAN OLAHRAGA PROVINSI JAWA BARAT XV 2026</h3><h4>I. IDENTITAS PEMOHON</h4><ul><li>Nama Bidang/Bagian: ${esc(bidangName)}</li><li>Nama Kegiatan/Uraian: ${esc(p.nama_kegiatan||'-')}</li><li>Nomor Pengajuan Surat: ${esc(p.nomor_nd_bidang||'-')}</li><li>Tanggal Pengajuan: ${esc(formatDate(p.tanggal_nd_bidang)||'-')}</li><li>Jumlah Anggaran yang Diajukan: ${rupiah(amount)}<br>(Terbilang: ${esc(terbilang)})</li></ul><h4>II. CHECKLIST KELENGKAPAN DOKUMEN</h4><p>Diisi dan diperiksa oleh ${esc(group.deputyLabel)}.</p><table class="check-table"><thead><tr><th>No.</th><th>Jenis Dokumen Kelengkapan</th><th>Ada</th><th>Tidak Ada</th><th>Catatan</th></tr></thead><tbody>${required.map((x,i)=>`<tr><td class="center">${i+1}</td><td>${esc(x[0])}</td><td class="center">${x[1]?'✓':''}</td><td class="center">${x[1]?'':'✓'}</td><td>${esc(x[2]||(x[1]?'Lengkap':'-'))}</td></tr>`).join('')}</tbody></table><h4>III. HASIL VERIFIKASI DAN REKOMENDASI</h4><p>☐ BERKAS LENGKAP DAN SAH</p><p>☐ DITUNDA / DIKEMBALIKAN</p><p>Alasan Pengembalian: ....................................................................................................................</p><p class="center">Bogor, ${esc(dateText)}</p><div class="sign-two">${manualSignV1649(`Diperiksa oleh, ${group.deputyLabel}`,deputyName)}${manualSignV1649(`Disetujui oleh, ${group.leaderLabel}`,leaderName)}</div>`;
+      const win=window.open('about:blank','_blank');
+      if(!win)return alert('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
+      win.document.open();win.document.write(paymentPrintShellV138('Lembar Verifikasi Permohonan Pembayaran',body));win.document.close();
+      return;
+    }
+
+    if(docType==='ND_BIDANG'){
+      const bidang=(paymentWorkspaceV138.bidang||[]).find(b=>String(b.id_bidang)===String(p.id_bidang));
+      const bidangName=bidang?.nama_bidang||p.id_bidang||'-';
+      const rincian=parseJsonV138(p.rincian_json),amount=toNumber(p.jumlah_pengajuan),terbilang=p.terbilang||numberWordsV138(amount),lampCount=paymentDocsV138(id).length+2;
+      const verificationLink=paymentAttachmentLinkV138(p,VERIFICATION_TTD_V1649,VERIFICATION_TTD_V1649);
+      const body=`<h1 class="doc-title">NOTA DINAS PERMOHONAN PEMBAYARAN</h1><table class="meta"><tr><td>Kepada Yth</td><td>:</td><td>Ketua Harian PB Porprov</td></tr><tr><td>Dari</td><td>:</td><td>${esc(p.jabatan_pengaju||'Kepala Bidang/Bagian')}</td></tr><tr><td>Nomor</td><td>:</td><td>${esc(p.nomor_nd_bidang||'-')}</td></tr><tr><td>Tanggal</td><td>:</td><td>${esc(formatDate(p.tanggal_nd_bidang)||'-')}</td></tr><tr><td>Sifat</td><td>:</td><td>${esc(p.sifat||'Penting')}</td></tr><tr><td>Lampiran</td><td>:</td><td>${lampCount} Lembar</td></tr><tr><td>Perihal</td><td>:</td><td>Permohonan Pembayaran Kegiatan ${esc(p.nama_kegiatan||'-')}</td></tr></table><div class="body"><p>Dengan hormat,</p><p>Bersama ini kami mengajukan pembayaran kegiatan ${esc(p.nama_kegiatan||'-')} pada Bidang/Bagian ${esc(bidangName)} sebesar <b>${rupiah(amount)}</b> (${esc(terbilang)}).</p><table class="meta"><tr><td>Hari / Tanggal</td><td>:</td><td>${esc(p.hari_tanggal_kegiatan||'-')}</td></tr><tr><td>Tempat</td><td>:</td><td>${esc(p.tempat_kegiatan||'-')}</td></tr></table><p>Rincian penggunaan anggaran:</p><table class="simple-table"><thead><tr><th>No.</th><th>Rincian Belanja</th><th>Jumlah</th></tr></thead><tbody>${rincian.map((x,i)=>`<tr><td class="center">${i+1}</td><td>${esc(x.uraian||'-')}</td><td>${rupiah(x.jumlah)}</td></tr>`).join('')}<tr><th colspan="2">Total</th><th>${rupiah(amount)}</th></tr></tbody></table><p>Dokumen yang dilampirkan:</p><ol class="doc-links"><li>${verificationLink}</li><li>${paymentAttachmentLinkV138(p,'Invoice Tagihan','Invoice Tagihan')}</li><li>${paymentAttachmentLinkV138(p,'Kuitansi/Tanda Terima Pembayaran','Kuitansi/Tanda Terima Pembayaran')}</li><li>${paymentAttachmentLinkV138(p,'Daftar Hadir/Absensi','Daftar Hadir/Absensi')}</li><li>${paymentAttachmentLinkV138(p,'Fotokopi NPWP & KTP Penerima','Fotokopi NPWP & KTP Penerima')}</li><li>${paymentAttachmentLinkV138(p,'Rekening Bank Penerima','Rekening Bank Penerima')}</li><li>${paymentAttachmentLinkV138(p,'LPJ Kegiatan/Foto Dokumentasi','LPJ Kegiatan/Foto Dokumentasi')}</li><li>Surat Pernyataan Tanggung Jawab Mutlak</li></ol><p>Demikian permohonan ini disampaikan untuk mendapat persetujuan.</p></div><div class="sign-right">Bogor, ${esc(formatDate(p.tanggal_nd_bidang)||'........ 2026')}<br>PB PORPROV JAWA BARAT XV TAHUN 2026<br>${paymentSignatureV138(p.nama_pengaju,p.jabatan_pengaju,true)}</div>`;
+      const win=window.open('about:blank','_blank');
+      if(!win)return alert('Popup diblokir browser. Izinkan popup untuk mencetak dokumen.');
+      win.document.open();win.document.write(paymentPrintShellV138('Nota Dinas Permohonan Pembayaran',body));win.document.close();
+      return;
+    }
+
+    return printPaymentBaseV1649.apply(this,arguments);
+  };
+
+  if(typeof paymentGeneratedButtonsV138==='function'){
+    const generatedBaseV1649=paymentGeneratedButtonsV138;
+    paymentGeneratedButtonsV138=function(p){
+      let html=String(generatedBaseV1649.apply(this,arguments)||'');
+      if(!html.includes("'VERIFIKASI'")&&!html.includes('&apos;VERIFIKASI&apos;')){
+        const button=`<button class="btn-soft" onclick="printPaymentDocV138('${esc(p.id_pengajuan)}','VERIFIKASI')">Cetak Lembar Verifikasi</button>`;
+        html=html.replace('</div>',`${button}</div>`);
+      }
+      return html;
+    };
+  }
+
+  if(typeof paymentFormV138==='function'){
+    const paymentFormBaseV1649=paymentFormV138;
+    paymentFormV138=function(){
+      return String(paymentFormBaseV1649.apply(this,arguments))
+        .replace(/Lembar Persetujuan Struktural wajib diunggah\./g,`${VERIFICATION_TTD_V1649} wajib diunggah.`)
+        .replace(/PDF yang sudah ditandatangani pejabat sesuai jalur bidang\./g,'Cetak lembar verifikasi, minta tanda tangan pejabat sesuai bidang, lalu unggah hasil pindainya.');
+    };
+  }
+
+  async function submitWithUpdatedCopyV1649(handler,id,title,message){
+    const ok=await confirmActionV133({title,message,confirmText:'Ya, Ajukan'});
+    if(!ok)return;
+    return handler(id);
+  }
+
+  if(typeof renderPaymentWorkspaceV138==='function'){
+    const renderWorkspaceBaseV1649=renderPaymentWorkspaceV138;
+    renderPaymentWorkspaceV138=function(){
+      const result=renderWorkspaceBaseV1649.apply(this,arguments);
+      requestAnimationFrame(()=>{
+        document.querySelectorAll('.payment-sop-note-v138').forEach(el=>{
+          el.innerHTML='<b>Alur:</b> Bidang mengunggah Lembar Verifikasi TTD → Ketua Harian menyetujui → Verifikator Keuangan memeriksa → Bendahara membayar.';
+        });
+        document.querySelectorAll('#contentArea h3,#contentArea p,#contentArea small,#contentArea span').forEach(el=>{
+          if(el.children.length)return;
+          const text=String(el.textContent||'');
+          if(text.includes(LEGACY_STRUCTURAL_V1649))el.textContent=text.replaceAll(LEGACY_STRUCTURAL_V1649,VERIFICATION_TTD_V1649);
+          if(text.includes('persetujuan struktural'))el.textContent=text.replaceAll('persetujuan struktural','Lembar Verifikasi TTD');
+        });
+      });
+      return result;
+    };
+  }
+
+  /* Pesan konfirmasi lama tetap memakai handler yang sama; hanya teksnya
+     disesuaikan tanpa menambah request atau reload dashboard. */
+  if(typeof window.submitPaymentFromListV145==='function'){
+    const submitListBaseV1649=window.submitPaymentFromListV145;
+    window.submitPaymentFromListV145=async function(id){
+      const p=paymentByIdV138(id),missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+      if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+      const ok=await confirmActionV133({title:'Ajukan kepada Ketua Harian',message:`Pastikan ${VERIFICATION_TTD_V1649} dan dokumen wajib lainnya sudah lengkap.`,confirmText:'Ya, Ajukan'});
+      if(!ok)return;
+      showLoading('Mengajukan kepada Ketua Harian...');
+      try{
+        const r=await apiPost({action:'submitPaymentV138',user:currentUser,id_pengajuan:id});
+        if(!r.success)throw new Error(r.message||'Gagal mengajukan pembayaran');
+        const local=paymentByIdV138(id);
+        if(local){local.status_pengajuan='MENUNGGU PERSETUJUAN PIMPINAN';local.tahap_aktif='PIMPINAN';local.updated_at=new Date().toISOString();}
+        paymentTabV138='DAFTAR';paymentEditIdV138='';renderPaymentWorkspaceV138();
+        showFastCacheNotice(r.message||'Pengajuan dikirim kepada Ketua Harian.');
+        setTimeout(()=>loadPaymentWorkspaceV138(true),150);
+      }catch(error){alert(error.message||String(error));}finally{hideLoading();}
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V1649__=PATCH_VERSION_V1649;
+})();
+
+/* SIMPROV v164.9.1 - Pesan submit form memakai nama dokumen resmi */
+(function(){
+  'use strict';
+  const DOC_NAME_V16491='Lembar Verifikasi Permohonan Pembayaran TTD';
+  if(typeof window.submitPaymentFormV145!=='function')return;
+
+  window.submitPaymentFormV145=async function(id){
+    const existing=paymentByIdV138(id),data=collectPaymentFormV138();
+    const candidate={...(existing||{}),reimbursement:data.reimbursement?'1':'0'};
+    const missing=paymentRequiredDocsV138(candidate).filter(j=>!paymentDocV138(candidate,j));
+    if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+
+    const activity=(paymentWorkspaceV138.kegiatan||[]).find(k=>String(k.id_kegiatan)===String(data.id_kegiatan));
+    const budget=toNumber(activity?.jumlah||0),detailTotal=paymentTotalRincianV138(data.rincian),accountTotal=paymentTotalRincianV138(data.rekening);
+    if(!data.id_kegiatan)return alert('Pilih kegiatan terlebih dahulu.');
+    if(!data.rincian.length)return alert('Isi minimal satu rincian penggunaan anggaran.');
+    if(budget>0&&detailTotal>budget)return alert(`Jumlah pengajuan ${rupiah(detailTotal)} melebihi pagu kegiatan ${rupiah(budget)}.`);
+    if(!data.rekening.length||Math.abs(accountTotal-detailTotal)>0.5)return alert('Total rekening tujuan harus sama dengan jumlah pengajuan.');
+
+    const ok=await confirmActionV133({title:'Simpan dan Ajukan kepada Ketua Harian',message:`Perubahan terakhir akan disimpan. Pastikan ${DOC_NAME_V16491} sudah diunggah.`,confirmText:'Ya, Simpan & Ajukan'});
+    if(!ok)return;
+
+    showLoading('Menyimpan dan mengajukan kepada Ketua Harian...');
+    try{
+      const saved=await apiPost({action:'savePaymentDraftV138',user:currentUser,data});
+      if(!saved.success)throw new Error(saved.message||'Gagal menyimpan pengajuan');
+      const savedId=saved.id_pengajuan||id;
+      if(saved.pengajuan){
+        paymentWorkspaceV138.pengajuan=[...(paymentWorkspaceV138.pengajuan||[]).filter(x=>String(x.id_pengajuan)!==String(savedId)),saved.pengajuan];
+      }
+      const submitted=await apiPost({action:'submitPaymentV138',user:currentUser,id_pengajuan:savedId});
+      if(!submitted.success)throw new Error(submitted.message||'Gagal mengajukan pembayaran');
+      const local=paymentByIdV138(savedId);
+      if(local){local.status_pengajuan='MENUNGGU PERSETUJUAN PIMPINAN';local.tahap_aktif='PIMPINAN';local.updated_at=new Date().toISOString();}
+      paymentTabV138='DAFTAR';paymentEditIdV138='';renderPaymentWorkspaceV138();
+      showFastCacheNotice(submitted.message||'Pengajuan dikirim kepada Ketua Harian.');
+      setTimeout(()=>loadPaymentWorkspaceV138(true),150);
+    }catch(error){alert(error.message||String(error));}
+    finally{hideLoading();}
+  };
+})();
+
+/* =========================================================
+   SIMPROV v164.10 - Nama Pejabat dari Manajemen Akses
+   ---------------------------------------------------------
+   Nama yang diisi Admin dipakai langsung pada dokumen.
+   Tidak menambah sheet, endpoint, atau alur baru.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16410='164.10';
+
+  function identityV16410(){
+    return {...(paymentWorkspaceV138?.identity||{}),...(dashboard?.systemIdentity||{})};
+  }
+
+  ppkStructurePanelV102=function(){
+    const i=dashboard?.systemIdentity||{};
+    return `<section class="panel fade-up premium-panel ppk-structure-v102">
+      <div class="panel-title-row"><div><h3>Pejabat Penanda Tangan Komitmen</h3><p class="panel-sub">Isi dengan nama orang yang sedang menjabat. Nama ini otomatis dipakai pada dokumen sesuai kelompok bidang.</p></div></div>
+      <div class="ppk-grid-v102">
+        <div class="field"><label>Nama Ketua Harian</label><input id="ppkKetuaHarian" value="${esc(i.ketua_harian||'')}" placeholder="Masukkan nama Ketua Harian"><small>Dipakai pada persetujuan dan perintah pembayaran.</small></div>
+        <div class="field"><label>Nama Wakil Ketua Harian</label><input id="ppkWakilKetuaHarian" value="${esc(i.wakil_ketua_harian||'')}" placeholder="Masukkan nama Wakil Ketua Harian"><small>Dipakai sebagai pemeriksa untuk kelompok Kesekretariatan.</small></div>
+        <div class="field"><label>Nama Ketua I</label><input id="ppkKetuaI" value="${esc(i.ketua_i||'')}" placeholder="Masukkan nama Ketua I"><small>Untuk Media, Akomodasi/Konsumsi, dan Kesehatan.</small></div>
+        <div class="field"><label>Nama Wakil Ketua I</label><input id="ppkWakilKetuaI" value="${esc(i.wakil_ketua_i||'')}" placeholder="Masukkan nama Wakil Ketua I"><small>Pemeriksa untuk bidang di bawah Ketua I.</small></div>
+        <div class="field"><label>Nama Ketua II</label><input id="ppkKetuaII" value="${esc(i.ketua_ii||'')}" placeholder="Masukkan nama Ketua II"><small>Untuk Organisasi dan Hukum, Keamanan, dan Transportasi.</small></div>
+        <div class="field"><label>Nama Wakil Ketua II</label><input id="ppkWakilKetuaII" value="${esc(i.wakil_ketua_ii||'')}" placeholder="Masukkan nama Wakil Ketua II"><small>Pemeriksa untuk bidang di bawah Ketua II.</small></div>
+        <div class="field"><label>Nama Ketua III</label><input id="ppkKetuaIII" value="${esc(i.ketua_iii||'')}" placeholder="Masukkan nama Ketua III"><small>Untuk Pertandingan, Sarana Prasarana, dan TIK.</small></div>
+        <div class="field"><label>Nama Wakil Ketua III</label><input id="ppkWakilKetuaIII" value="${esc(i.wakil_ketua_iii||'')}" placeholder="Masukkan nama Wakil Ketua III"><small>Pemeriksa untuk bidang di bawah Ketua III.</small></div>
+        <div class="field"><label>Nama Sekretaris Umum</label><input id="ppkSekum" value="${esc(i.sekretaris_umum||'')}" placeholder="Masukkan nama Sekretaris Umum"><small>Untuk Kerjasama dan Usaha serta Pengadaan Barang dan Jasa.</small></div>
+        <div class="field"><label>Nama Wakil Sekretaris</label><input id="ppkWakilSekretaris" value="${esc(i.wakil_sekretaris||'')}" placeholder="Masukkan nama Wakil Sekretaris"><small>Pemeriksa untuk bagian di bawah Sekretaris Umum.</small></div>
+      </div>
+      <div class="actions"><button id="btnSavePpkStructureV102" type="button" onclick="savePpkStructureV102()">Simpan Nama Pejabat</button></div>
+    </section>`;
+  };
+
+  savePpkStructureV102=async function(){
+    const btn=document.getElementById('btnSavePpkStructureV102');
+    if(btn?.dataset.busy==='1')return;
+    if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='Menyimpan...';}
+    showLoading('Menyimpan nama pejabat...');
+    try{
+      const data={
+        ketua_harian:document.getElementById('ppkKetuaHarian')?.value.trim()||'',
+        ketua_i:document.getElementById('ppkKetuaI')?.value.trim()||'',
+        ketua_ii:document.getElementById('ppkKetuaII')?.value.trim()||'',
+        ketua_iii:document.getElementById('ppkKetuaIII')?.value.trim()||'',
+        sekretaris_umum:document.getElementById('ppkSekum')?.value.trim()||'',
+        wakil_ketua_harian:document.getElementById('ppkWakilKetuaHarian')?.value.trim()||'',
+        wakil_ketua_i:document.getElementById('ppkWakilKetuaI')?.value.trim()||'',
+        wakil_ketua_ii:document.getElementById('ppkWakilKetuaII')?.value.trim()||'',
+        wakil_ketua_iii:document.getElementById('ppkWakilKetuaIII')?.value.trim()||'',
+        wakil_sekretaris:document.getElementById('ppkWakilSekretaris')?.value.trim()||''
+      };
+      const res=await apiPost({action:'savePpkStructureV102',user:currentUser,data});
+      if(!res?.success)throw new Error(res?.message||'Nama pejabat gagal disimpan.');
+      dashboard=dashboard||{};
+      dashboard.systemIdentity={...(dashboard.systemIdentity||{}),...(res.identity||data)};
+      if(typeof paymentWorkspaceV138==='object'&&paymentWorkspaceV138){
+        paymentWorkspaceV138.identity={...(paymentWorkspaceV138.identity||{}),...dashboard.systemIdentity};
+      }
+      renderAll();
+      showFastCacheNotice('Nama pejabat berhasil disimpan.');
+    }catch(error){alert(error?.message||String(error));}
+    finally{
+      hideLoading();
+      if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='Simpan Nama Pejabat';}
+    }
+  };
+
+  if(typeof loadPaymentWorkspaceV138==='function'){
+    const loadPaymentWorkspaceBaseV16410=loadPaymentWorkspaceV138;
+    loadPaymentWorkspaceV138=async function(){
+      const result=await loadPaymentWorkspaceBaseV16410.apply(this,arguments);
+      if(paymentWorkspaceV138?.identity){
+        dashboard=dashboard||{};
+        dashboard.systemIdentity={...(dashboard.systemIdentity||{}),...(paymentWorkspaceV138.identity||{})};
+      }
+      return result;
+    };
+  }
+
+  if(typeof printPaymentDocV138==='function'){
+    const printPaymentDocBaseV16410=printPaymentDocV138;
+    printPaymentDocV138=function(){
+      if(typeof paymentWorkspaceV138==='object'&&paymentWorkspaceV138){
+        paymentWorkspaceV138.identity=identityV16410();
+      }
+      return printPaymentDocBaseV16410.apply(this,arguments);
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V16410__=PATCH_VERSION_V16410;
+})();
+
+/* =========================================================
+   SIMPROV v164.11 - TTE Dokumen Pembayaran Setelah Pengajuan
+   ---------------------------------------------------------
+   Nota Dinas Bidang dan SPTJM tidak menampilkan cap TTE pada
+   pratinjau draft. Cap dan tanggal baru tampil setelah user
+   mengonfirmasi TTE & Ajukan Verifikasi.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16411='164.11';
+  let paymentPrintContextV16411=null;
+
+  function upperV16411(value){return String(value||'').trim().toUpperCase();}
+  function isBidangGeneratedDocV16411(type){
+    return ['ND_BIDANG','SPTJM'].includes(upperV16411(type));
+  }
+  function hasBidangTteV16411(p){
+    return Boolean(String(p?.tte_bidang_waktu||'').trim()||String(p?.tte_bidang_token||'').trim());
+  }
+  function bidangTteDateV16411(p){
+    const raw=p?.tte_bidang_waktu||'';
+    return raw?(formatDate(raw)||String(raw)):'-';
+  }
+
+  /* Simpan konteks dokumen agar fungsi tanda tangan mengetahui apakah
+     dokumen yang dibuka masih draft atau sudah diajukan. */
+  if(typeof printPaymentDocV138==='function'){
+    const printPaymentDocBaseV16411=printPaymentDocV138;
+    printPaymentDocV138=function(id,type){
+      paymentPrintContextV16411={
+        p:typeof paymentByIdV138==='function'?(paymentByIdV138(id)||{}):{},
+        type:upperV16411(type)
+      };
+      try{return printPaymentDocBaseV16411.apply(this,arguments);}
+      finally{setTimeout(()=>{paymentPrintContextV16411=null;},0);}
+    };
+  }
+
+  /* Khusus Nota Dinas Bidang dan SPTJM: draft hanya menampilkan ruang
+     tanda tangan dan nama. Cap TTE beserta tanggal muncul setelah submit. */
+  if(typeof paymentSignatureV138==='function'){
+    const paymentSignatureBaseV16411=paymentSignatureV138;
+    paymentSignatureV138=function(name,role,signed=true){
+      const ctx=paymentPrintContextV16411;
+      if(!ctx||!isBidangGeneratedDocV16411(ctx.type)){
+        return paymentSignatureBaseV16411.apply(this,arguments);
+      }
+      const p=ctx.p||{};
+      const isSigned=hasBidangTteV16411(p);
+      const stamp=isSigned
+        ?`<div class="tte-box-v139 tte-box-v1644">TTE SIMPROV<span class="tte-time-v139">${esc(bidangTteDateV16411(p))}</span></div>`
+        :'';
+      return `<div class="payment-signature-v1644" style="text-align:center">${esc(role||'')}<div class="sign-space"></div>${stamp}<br><b>${esc(name||'[NAMA LENGKAP]')}</b></div>`;
+    };
+  }
+
+  function applySubmittedTteV16411(local,response){
+    if(!local)return;
+    local.status_pengajuan='MENUNGGU PERSETUJUAN PIMPINAN';
+    local.tahap_aktif='PIMPINAN';
+    local.tte_bidang_oleh=response?.tte_bidang_oleh||currentUser?.nama||local.nama_pengaju||'';
+    local.tte_bidang_waktu=response?.tte_bidang_waktu||new Date().toISOString();
+    local.tte_bidang_token=response?.tte_bidang_token||local.tte_bidang_token||'';
+    local.updated_at=new Date().toISOString();
+  }
+
+  /* Handler daftar: konfirmasi jelas bahwa cap TTE baru dipasang setelah
+     user menyetujui pengajuan. */
+  window.submitPaymentFromListV145=async function(id){
+    const p=paymentByIdV138(id);
+    const missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+    if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+
+    const ok=await confirmActionV133({
+      title:'TTE & Ajukan Verifikasi',
+      message:'Nota Dinas Bidang dan SPTJM akan diberi cap TTE SIMPROV beserta tanggal, lalu pengajuan dikirim kepada Ketua Harian. Lanjutkan?',
+      confirmText:'Ya, TTE & Ajukan'
+    });
+    if(!ok)return;
+
+    showLoading('Memberi TTE dan mengajukan kepada Ketua Harian...');
+    try{
+      const result=await apiPost({action:'submitPaymentV138',user:currentUser,id_pengajuan:id});
+      if(!result.success)throw new Error(result.message||'Gagal mengajukan pembayaran');
+      applySubmittedTteV16411(paymentByIdV138(id),result);
+      paymentTabV138='DAFTAR';
+      paymentEditIdV138='';
+      renderPaymentWorkspaceV138();
+      showFastCacheNotice(result.message||'TTE berhasil dipasang dan pengajuan dikirim kepada Ketua Harian.');
+      setTimeout(()=>loadPaymentWorkspaceV138(true),150);
+    }catch(error){alert(error.message||String(error));}
+    finally{hideLoading();}
+  };
+
+  /* Handler form: simpan perubahan terlebih dahulu, lalu pasang TTE hanya
+     setelah konfirmasi dan submit backend berhasil. */
+  window.submitPaymentFormV145=async function(id){
+    const existing=paymentByIdV138(id),data=collectPaymentFormV138();
+    const candidate={...(existing||{}),reimbursement:data.reimbursement?'1':'0'};
+    const missing=paymentRequiredDocsV138(candidate).filter(j=>!paymentDocV138(candidate,j));
+    if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+
+    const activity=(paymentWorkspaceV138.kegiatan||[]).find(k=>String(k.id_kegiatan)===String(data.id_kegiatan));
+    const budget=toNumber(activity?.jumlah||0);
+    const detailTotal=paymentTotalRincianV138(data.rincian);
+    const accountTotal=paymentTotalRincianV138(data.rekening);
+    if(!data.id_kegiatan)return alert('Pilih kegiatan terlebih dahulu.');
+    if(!data.rincian.length)return alert('Isi minimal satu rincian penggunaan anggaran.');
+    if(budget>0&&detailTotal>budget)return alert(`Jumlah pengajuan ${rupiah(detailTotal)} melebihi pagu kegiatan ${rupiah(budget)}.`);
+    if(!data.rekening.length||Math.abs(accountTotal-detailTotal)>0.5)return alert('Total rekening tujuan harus sama dengan jumlah pengajuan.');
+
+    const ok=await confirmActionV133({
+      title:'Simpan, TTE & Ajukan Verifikasi',
+      message:'Perubahan terakhir akan disimpan. Setelah berhasil, Nota Dinas Bidang dan SPTJM diberi cap TTE SIMPROV beserta tanggal, lalu dikirim kepada Ketua Harian. Lanjutkan?',
+      confirmText:'Ya, Simpan & Ajukan'
+    });
+    if(!ok)return;
+
+    showLoading('Menyimpan, memberi TTE, dan mengajukan...');
+    try{
+      const saved=await apiPost({action:'savePaymentDraftV138',user:currentUser,data});
+      if(!saved.success)throw new Error(saved.message||'Gagal menyimpan pengajuan');
+      const savedId=saved.id_pengajuan||id;
+      if(saved.pengajuan){
+        paymentWorkspaceV138.pengajuan=[...(paymentWorkspaceV138.pengajuan||[]).filter(x=>String(x.id_pengajuan)!==String(savedId)),saved.pengajuan];
+      }
+      const submitted=await apiPost({action:'submitPaymentV138',user:currentUser,id_pengajuan:savedId});
+      if(!submitted.success)throw new Error(submitted.message||'Gagal mengajukan pembayaran');
+      applySubmittedTteV16411(paymentByIdV138(savedId),submitted);
+      paymentTabV138='DAFTAR';
+      paymentEditIdV138='';
+      renderPaymentWorkspaceV138();
+      showFastCacheNotice(submitted.message||'TTE berhasil dipasang dan pengajuan dikirim kepada Ketua Harian.');
+      setTimeout(()=>loadPaymentWorkspaceV138(true),150);
+    }catch(error){alert(error.message||String(error));}
+    finally{hideLoading();}
+  };
+
+  window.__SIMPROV_PATCH_VERSION_V16411__=PATCH_VERSION_V16411;
+})();
+
+/* =========================================================
+   SIMPROV v164.12 - Tombol Buat Pengajuan hanya setelah kegiatan dipilih
+   ========================================================= */
+(function(){
+  const PATCH_VERSION_V16412='164.12';
+
+  function syncPaymentCreateButtonV16412(){
+    const activity=document.getElementById('payActivityV138');
+    const button=document.getElementById('paySaveButtonV139');
+    if(!activity||!button)return;
+
+    const isEditing=!!String(typeof paymentEditIdV138!=='undefined'?paymentEditIdV138:'').trim()
+      || /perubahan/i.test(String(button.textContent||''));
+    const hasActivity=!!String(activity.value||'').trim();
+    const shouldShow=isEditing||hasActivity;
+
+    button.hidden=!shouldShow;
+    button.style.display=shouldShow?'':'none';
+    if(shouldShow)button.disabled=false;
+
+    const group=button.closest('.action-group');
+    if(group&&!isEditing)group.style.display=shouldShow?'':'none';
+  }
+
+  if(typeof renderPaymentWorkspaceV138==='function'){
+    const renderPaymentWorkspaceBaseV16412=renderPaymentWorkspaceV138;
+    renderPaymentWorkspaceV138=function(){
+      const result=renderPaymentWorkspaceBaseV16412.apply(this,arguments);
+      setTimeout(syncPaymentCreateButtonV16412,0);
+      return result;
+    };
+  }
+
+  document.addEventListener('change',function(event){
+    if(event?.target?.id==='payActivityV138')setTimeout(syncPaymentCreateButtonV16412,0);
+  });
+
+  window.__SIMPROV_PATCH_VERSION_V16412__=PATCH_VERSION_V16412;
+})();
+
+/* =========================================================
+   SIMPROV v164.13 - Validasi Dokumen Terpilih & Kesiapan Pembayaran
+   ========================================================= */
+(function(){
+  'use strict';
+  const PATCH_VERSION_V16413='164.13';
+  const PAYMENT_READY_DOCS_V16413=[
+    'Hasil Survey Harga',
+    'Spesifikasi Teknis dan HPS',
+    'Kuitansi / Nota / Invoice',
+    'Berita Acara Pemeriksaan Barang/Pekerjaan',
+    'Berita Acara Serah Terima',
+    'Faktur Pembelian'
+  ];
+
+  function roleV16413(){
+    return String(typeof actualRoleV133==='function'?actualRoleV133():(currentUser?.role||'')).trim().toUpperCase();
+  }
+  function isPbjVerifierV16413(){return roleV16413()==='VERIFIKATOR_PBJ';}
+  function docKeyV16413(value){
+    if(typeof dokKeyV94==='function')return dokKeyV94(value);
+    return String(value||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function selectedProcChecksV16413(id){
+    return [...document.querySelectorAll('.proc-bulk-check-v16413')]
+      .filter(input=>String(input.dataset.groupId||'')===String(id)&&input.checked&&!input.disabled);
+  }
+  function allProcChecksV16413(id){
+    return [...document.querySelectorAll('.proc-bulk-check-v16413')]
+      .filter(input=>String(input.dataset.groupId||'')===String(id)&&!input.disabled);
+  }
+
+  window.toggleProcChecksV16413=function(id,checked){
+    allProcChecksV16413(id).forEach(input=>{input.checked=!!checked;});
+    const count=document.getElementById('procBulkCountV16413_'+String(id).replace(/[^A-Za-z0-9_-]/g,'_'));
+    if(count)count.textContent=String(selectedProcChecksV16413(id).length);
+  };
+
+  document.addEventListener('change',function(event){
+    const input=event?.target;
+    if(!input?.classList?.contains('proc-bulk-check-v16413'))return;
+    const id=String(input.dataset.groupId||'');
+    const count=document.getElementById('procBulkCountV16413_'+id.replace(/[^A-Za-z0-9_-]/g,'_'));
+    if(count)count.textContent=String(selectedProcChecksV16413(id).length);
+  });
+
+  window.bulkValidateProcDocsV16413=async function(id,button){
+    if(!isPbjVerifierV16413()&&roleV16413()!=='ADMIN')return alert('Aksi ini hanya tersedia untuk Verifikator PBJ.');
+    const selected=selectedProcChecksV16413(id);
+    if(!selected.length)return alert('Centang dokumen yang akan dinyatakan valid.');
+    const ids=selected.map(input=>String(input.value||'')).filter(Boolean);
+    const names=selected.map(input=>String(input.dataset.docName||'Dokumen')).filter(Boolean);
+    const preview=names.slice(0,6).map(name=>'• '+name).join('\n')+(names.length>6?`\n• dan ${names.length-6} dokumen lainnya`: '');
+    const message=`${ids.length} dokumen yang dipilih akan dinyatakan VALID. Dokumen yang tidak dipilih tetap pada status sekarang.\n\n${preview}\n\nPastikan seluruh file sudah diperiksa.`;
+    const ok=typeof confirmActionV133==='function'
+      ?await confirmActionV133({title:'Validasi Dokumen Terpilih',message,confirmText:'Ya, Validasi'})
+      :confirm(message);
+    if(!ok)return;
+
+    if(button){button.disabled=true;button.dataset.busy='1';button.textContent='Memvalidasi...';}
+    showLoading('Memvalidasi dokumen terpilih...');
+    try{
+      let result=await apiPost({action:'bulkValidateDokumenV16416',user:currentUser,id_kegiatan:id,ids});
+      /* Pengaman cache/deployment lama: bila endpoint massal belum dikenali,
+         gunakan aksi validasi dokumen yang sudah ada tanpa memuat ulang dashboard. */
+      if(!result?.success&&/Action tidak dikenal/i.test(String(result?.message||''))){
+        const updated=[];
+        for(let i=0;i<ids.length;i++){
+          if(typeof setLoadingProgressV133==='function'){
+            const pct=Math.max(5,Math.round(((i+1)/ids.length)*95));
+            setLoadingProgressV133(pct,`Memvalidasi dokumen ${i+1} dari ${ids.length}...`);
+          }
+          const one=await apiPost({action:'verifyDokumen',user:currentUser,id_dokumen:ids[i],status_verifikasi:'VALID',catatan_admin:''});
+          if(!one?.success)throw new Error(one?.message||`Validasi dokumen ke-${i+1} gagal`);
+          const local=(dashboard.dokumen||[]).find(doc=>String(doc.id_dokumen)===String(ids[i]));
+          if(local){
+            Object.assign(local,{status_verifikasi:'VALID DOKUMEN',catatan_admin:'',verifikasi_by:currentUser?.nama||currentUser?.username||'Verifikator PBJ',tanggal_verifikasi:new Date().toISOString()});
+            updated.push({...local});
+          }
+        }
+        result={success:true,message:`${ids.length} dokumen berhasil dinyatakan valid`,dokumen:updated,status_paket:'',fallback:true};
+      }
+      if(!result?.success)throw new Error(result?.message||'Validasi dokumen gagal');
+      dashboard.dokumen=dashboard.dokumen||[];
+      (result.dokumen||[]).forEach(update=>{
+        const local=dashboard.dokumen.find(doc=>String(doc.id_dokumen)===String(update.id_dokumen));
+        if(local)Object.assign(local,update);else dashboard.dokumen.push(update);
+      });
+      const kegiatan=typeof kegiatanById==='function'?kegiatanById(id):(dashboard.perencanaan||[]).find(k=>String(k.id_kegiatan)===String(id));
+      if(kegiatan&&result.status_paket)kegiatan.status_pencairan=result.status_paket;
+      if(typeof writeDashboardCache==='function')writeDashboardCache(dashboard);
+      if(typeof renderContent==='function')renderContent();
+      if(typeof renderSummary==='function')renderSummary();
+      if(typeof showFastCacheNotice==='function')showFastCacheNotice(result.message||`${ids.length} dokumen berhasil divalidasi.`);
+      else alert(result.message||`${ids.length} dokumen berhasil divalidasi.`);
+    }catch(error){alert(error.message||String(error));}
+    finally{
+      hideLoading();
+      if(button){button.disabled=false;button.dataset.busy='0';button.textContent='Validasi Dokumen Terpilih';}
+    }
+  };
+
+  /* Tambahkan pilihan massal pada tabel dokumen aktif. Tombol Perbaikan
+     satuan tetap tersedia; dokumen yang tidak dicentang tidak berubah. */
+  if(typeof dokumenTableV95==='function'){
+    const dokumenTableBaseV16413=dokumenTableV95;
+    dokumenTableV95=function(k,jenisList,ctx){
+      const html=dokumenTableBaseV16413.apply(this,arguments);
+      if((ctx||'PGD')!=='PGD')return html;
+      try{
+        const holder=document.createElement('div');holder.innerHTML=html;
+        const role=roleV16413();
+
+        /* Verifikator PBJ hanya memeriksa dokumen; tombol pembuatan HPS
+           tetap tersedia untuk User Bidang dan Admin. */
+        if(role==='VERIFIKATOR_PBJ'){
+          holder.querySelectorAll('button').forEach(btn=>{
+            if(/^BUAT DI SISTEM$/i.test(String(btn.textContent||'').trim()))btn.remove();
+          });
+          holder.querySelectorAll('.document-helper-actions-v149').forEach(box=>{
+            box.querySelectorAll('.document-helper-separator-v149').forEach(separator=>separator.remove());
+            if(!box.querySelector('button,a'))box.textContent='-';
+          });
+        }
+
+        if(!['VERIFIKATOR_PBJ','ADMIN'].includes(role))return holder.innerHTML;
+        const table=holder.querySelector('table');
+        if(!table)return holder.innerHTML;
+        const docs=(dashboard?.dokumen||[])
+          .filter(doc=>String(doc.id_kegiatan)===String(k?.id_kegiatan))
+          .sort((a,b)=>Number(a._row||0)-Number(b._row||0));
+        const latest={};docs.forEach(doc=>{latest[docKeyV16413(doc.jenis_dokumen)]=doc;});
+        const rows=[...table.querySelectorAll('tbody tr')];
+        let selectable=0;
+        rows.forEach(row=>{
+          const cells=row.querySelectorAll('td');
+          if(!cells.length)return;
+          const label=String(cells[0].childNodes[0]?.textContent||cells[0].textContent||'').replace(/\s+/g,' ').trim();
+          const doc=latest[docKeyV16413(label)];
+          const waiting=!!doc&&typeof canVerifyDocumentNowV64==='function'&&canVerifyDocumentNowV64(doc);
+          const selectCell=document.createElement('td');
+          selectCell.className='proc-bulk-cell-v16413';
+          if(waiting&&doc.id_dokumen){
+            selectable++;
+            selectCell.innerHTML=`<label class="proc-bulk-choice-v16413" title="Pilih ${esc(label)}"><input class="proc-bulk-check-v16413" type="checkbox" data-group-id="${esc(k.id_kegiatan)}" data-doc-name="${esc(label)}" value="${esc(doc.id_dokumen)}"><span>✓</span></label>`;
+          }else selectCell.innerHTML='<span class="muted">-</span>';
+          row.insertBefore(selectCell,row.firstChild);
+        });
+        const headerRow=table.querySelector('thead tr');
+        if(headerRow){
+          const th=document.createElement('th');th.className='proc-bulk-head-v16413';th.textContent='Pilih';
+          headerRow.insertBefore(th,headerRow.firstChild);
+        }
+        if(selectable){
+          const safeId=String(k.id_kegiatan).replace(/[^A-Za-z0-9_-]/g,'_');
+          const toolbar=document.createElement('div');toolbar.className='proc-bulk-toolbar-v16413';
+          toolbar.innerHTML=`<label><input type="checkbox" onchange="toggleProcChecksV16413('${esc(k.id_kegiatan)}',this.checked)"> Pilih semua yang menunggu</label><div class="proc-bulk-summary-v16413"><b id="procBulkCountV16413_${safeId}">0</b> dipilih</div><button class="btn-green" type="button" onclick="bulkValidateProcDocsV16413('${esc(k.id_kegiatan)}',this)">Validasi Dokumen Terpilih</button><small>Dokumen yang tidak dipilih tidak berubah.</small>`;
+          const wrap=table.closest('.table-wrap')||table.parentElement;
+          wrap.insertAdjacentElement('beforebegin',toolbar);
+        }
+        table.classList.add('proc-bulk-table-v16413');
+        return holder.innerHTML;
+      }catch(error){console.warn('Patch dokumen v164.13 gagal diterapkan',error);return html;}
+    };
+  }
+
+  function isBelanjaLangsungV16413(activity){
+    return String(activity?.metode_pemilihan||activity?.metode||'').trim().toUpperCase()==='BELANJA LANGSUNG';
+  }
+  function uploadedDocsV16413(id){
+    const map={};
+    (dashboard?.dokumen||[]).filter(doc=>String(doc.id_kegiatan)===String(id)).forEach(doc=>{
+      if(doc.url_file||doc.nama_file)map[docKeyV16413(doc.jenis_dokumen)]=doc;
+    });
+    return map;
+  }
+  function syncPaymentEligibilityLocalV16413(){
+    if(!paymentWorkspaceV138?.kegiatan||!dashboard?.dokumen)return;
+    paymentWorkspaceV138.kegiatan.forEach(activity=>{
+      if(!isBelanjaLangsungV16413(activity))return;
+      if(String(activity.status_perencanaan||'').toUpperCase()!=='DISETUJUI')return;
+      const map=uploadedDocsV16413(activity.id_kegiatan);
+      const missing=PAYMENT_READY_DOCS_V16413.filter(name=>!map[docKeyV16413(name)]);
+      activity.payment_ready=!missing.length;
+      activity.payment_valid_process=PAYMENT_READY_DOCS_V16413.length-missing.length;
+      activity.payment_required_process=PAYMENT_READY_DOCS_V16413.length;
+      activity.payment_reason=missing.length
+        ?`Unggah dokumen wajib sampai Faktur Pembelian (${activity.payment_valid_process}/${PAYMENT_READY_DOCS_V16413.length} sudah diunggah).`
+        :'Dokumen sampai Faktur Pembelian sudah lengkap.';
+    });
+  }
+
+  if(typeof paymentFormV138==='function'){
+    const paymentFormBaseV16413=paymentFormV138;
+    paymentFormV138=function(){syncPaymentEligibilityLocalV16413();return paymentFormBaseV16413.apply(this,arguments);};
+  }
+  if(typeof renderPaymentWorkspaceV138==='function'){
+    const renderPaymentWorkspaceBaseV16413=renderPaymentWorkspaceV138;
+    renderPaymentWorkspaceV138=function(){syncPaymentEligibilityLocalV16413();return renderPaymentWorkspaceBaseV16413.apply(this,arguments);};
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V16413__=PATCH_VERSION_V16413;
+})();
+
+/* =========================================================
+   SIMPROV v164.14 - Pencarian Ringan dan Filter Bidang
+   ---------------------------------------------------------
+   1. Pencarian daftar bekerja lokal tanpa render setiap huruf.
+   2. Pencarian Perencanaan memakai jeda singkat agar input lancar.
+   3. Filter Bidang untuk Verifikator PBJ pada tiga menu paket.
+   4. Search dan Filter Bidang pada pembayaran serta riwayat.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16414='164.14';
+  const searchStateV16414=window.searchStateV16414||{};
+  const bidangStateV16414=window.bidangStateV16414||{};
+  window.searchStateV16414=searchStateV16414;
+  window.bidangStateV16414=bidangStateV16414;
+
+  let planSearchTimerV16414=null;
+  let enhanceFrameV16414=0;
+  let observerBusyV16414=false;
+
+  function normV16414(value){
+    return String(value==null?'':value).toLowerCase().replace(/\s+/g,' ').trim();
+  }
+  function roleV16414(){
+    return String(typeof actualRoleV133==='function'?actualRoleV133():(currentUser?.role||'')).trim().toUpperCase();
+  }
+  function menuKeyV16414(){return String(activeMenu||'').trim()||'DEFAULT';}
+  function isPlanningV16414(){return menuKeyV16414()==='Perencanaan';}
+  function isPbjPackageMenuV16414(){
+    return ['Pengadaan Langsung','Pencairan','Pencatatan Pengadaan','Non Pengadaan','Pencatatan Non Pengadaan'].includes(menuKeyV16414());
+  }
+  function isPaymentPageV16414(){
+    return ['Surat','Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan','Antrean Verifikasi','Riwayat Verifikasi','Antrean Pembayaran Bendahara','Riwayat Pembayaran Bendahara'].includes(menuKeyV16414());
+  }
+  function fieldNameV16414(id){
+    try{return String(typeof bidangName==='function'?bidangName(id):id||'').trim();}catch(e){return String(id||'').trim();}
+  }
+  function assignedIdsV16414(){
+    const raw=currentUser?.bidang_akses;
+    const list=Array.isArray(raw)?raw:String(raw||'').split(/[,;|\n]+/);
+    return list.map(v=>String(v||'').trim()).filter(Boolean);
+  }
+  function activityRowsV16414(){
+    let rows=Array.isArray(dashboard?.perencanaan)?dashboard.perencanaan:[];
+    const menu=menuKeyV16414();
+    try{
+      if(menu==='Pengadaan Langsung')rows=rows.filter(k=>typeof isPipelineV94==='function'&&isPipelineV94(k));
+      else if(['Pencairan','Pencatatan Pengadaan'].includes(menu))rows=rows.filter(k=>typeof isBLV94==='function'&&isBLV94(k));
+      else if(['Non Pengadaan','Pencatatan Non Pengadaan'].includes(menu))rows=rows.filter(k=>typeof isNonKategoriV81==='function'&&isNonKategoriV81(k));
+    }catch(e){}
+    const ids=assignedIdsV16414();
+    if(roleV16414()==='VERIFIKATOR_PBJ'&&ids.length)rows=rows.filter(k=>ids.includes(String(k.id_bidang||'')));
+    return rows;
+  }
+  function paymentFieldNamesV16414(){
+    const activities=[...(paymentWorkspaceV138?.kegiatan||[]),...(dashboard?.perencanaan||[])];
+    const map=new Map();
+    activities.forEach(k=>{
+      const id=String(k?.id_bidang||'').trim();if(!id)return;
+      const name=fieldNameV16414(id);if(name)map.set(id,name);
+    });
+    (paymentWorkspaceV138?.pengajuan||[]).forEach(p=>{
+      const id=String(p?.id_bidang||'').trim();if(!id)return;
+      const name=fieldNameV16414(id);if(name)map.set(id,name);
+    });
+    return [...map.values()].sort((a,b)=>a.localeCompare(b,'id'));
+  }
+  function packageFieldNamesV16414(){
+    const names=new Set();
+    activityRowsV16414().forEach(k=>{const name=fieldNameV16414(k.id_bidang);if(name)names.add(name);});
+    return [...names].sort((a,b)=>a.localeCompare(b,'id'));
+  }
+  function activeFieldNamesV16414(){return isPaymentPageV16414()?paymentFieldNamesV16414():packageFieldNamesV16414();}
+
+  function filterNodesV16414(panel){
+    if(!panel)return [];
+    const payment=[...panel.querySelectorAll('.payment-list-v138 > details.payment-card-v138')];
+    if(payment.length)return payment;
+    const packageRows=[...panel.querySelectorAll('table.paket-table-v95 tbody tr')].filter(row=>!row.querySelector('td.empty'));
+    if(packageRows.length)return packageRows;
+    const nonCards=[...panel.querySelectorAll('.non-list-v83 > .non-card-v83, .non-list-v83 > article, .non-list-v83 > div')].filter(el=>!el.classList.contains('empty-box'));
+    if(nonCards.length)return nonCards;
+    const genericRows=[...panel.querySelectorAll('.table-wrap table tbody tr')].filter(row=>!row.querySelector('td.empty')&&!row.closest('.payment-card-v138'));
+    if(genericRows.length)return genericRows;
+    return [];
+  }
+  function applyLocalFiltersV16414(panel,key){
+    const nodes=filterNodesV16414(panel);if(!nodes.length)return;
+    const query=normV16414(searchStateV16414[key]||'');
+    const field=normV16414(bidangStateV16414[key]||'ALL');
+    let visible=0;
+    nodes.forEach(node=>{
+      const text=normV16414(node.textContent||'');
+      const show=(!query||text.includes(query))&&(field==='all'||!field||text.includes(field));
+      node.style.display=show?'':'none';if(show)visible++;
+    });
+    panel.querySelectorAll('[data-fast-result-count-v16414]').forEach(el=>{el.textContent=String(visible);});
+    const oldCount=panel.querySelector('#paketCountV96');if(oldCount)oldCount.textContent=String(visible);
+  }
+  function scheduleLocalFilterV16414(panel,key){
+    cancelAnimationFrame(panel._fastFilterFrameV16414||0);
+    panel._fastFilterFrameV16414=requestAnimationFrame(()=>applyLocalFiltersV16414(panel,key));
+  }
+
+  function bindPlanningSearchV16414(input){
+    if(!input||input.dataset.fastPlanningV16414==='1')return;
+    input.dataset.fastPlanningV16414='1';input.removeAttribute('oninput');input.oninput=null;
+    input.addEventListener('input',function(){
+      const value=this.value;
+      filters.rencanaSearch=value;
+      clearTimeout(planSearchTimerV16414);
+      planSearchTimerV16414=setTimeout(()=>{
+        if(menuKeyV16414()!=='Perencanaan')return;
+        perencanaanPage=1;
+        renderPerencanaan();
+        requestAnimationFrame(()=>{
+          const next=[...document.querySelectorAll('#contentArea input')].find(el=>/cari nama kegiatan/i.test(el.placeholder||''));
+          if(next){next.focus();const end=next.value.length;try{next.setSelectionRange(end,end);}catch(e){}}
+        });
+      },320);
+    });
+  }
+
+  function bindLocalSearchV16414(input,panel,key){
+    if(!input||input.dataset.fastSearchV16414==='1')return;
+    input.dataset.fastSearchV16414='1';input.removeAttribute('oninput');input.oninput=null;
+    input.value=searchStateV16414[key]??input.value??'';
+    input.addEventListener('input',function(){
+      searchStateV16414[key]=this.value;
+      if(typeof paketSearchV95!=='undefined'&&panel.querySelector('table.paket-table-v95'))paketSearchV95=this.value;
+      if(typeof filters!=='undefined'&&['Non Pengadaan','Pencatatan Non Pengadaan'].includes(menuKeyV16414()))filters.cairSearch=this.value;
+      scheduleLocalFilterV16414(panel,key);
+    });
+  }
+
+  window.setFastBidangFilterV16414=function(key,value){
+    bidangStateV16414[String(key||menuKeyV16414())]=String(value||'ALL');
+    const panel=document.querySelector(`#contentArea [data-fast-panel-key-v16414="${CSS.escape(String(key||menuKeyV16414()))}"]`)||document.querySelector('#contentArea .payment-list-panel-v140, #contentArea .premium-panel');
+    if(panel)scheduleLocalFilterV16414(panel,String(key||menuKeyV16414()));
+  };
+
+  function fieldSelectHtmlV16414(key,names){
+    const selected=String(bidangStateV16414[key]||'ALL');
+    return `<label class="fast-filter-field-v16414"><span>Filter Bidang</span><select onchange="setFastBidangFilterV16414('${esc(key)}',this.value)"><option value="ALL">Semua Bidang</option>${names.map(name=>`<option value="${esc(name)}" ${selected===name?'selected':''}>${esc(name)}</option>`).join('')}</select></label>`;
+  }
+  function searchHtmlV16414(key){
+    return `<label class="fast-search-field-v16414"><span>Pencarian</span><input type="search" value="${esc(searchStateV16414[key]||'')}" placeholder="Cari nama paket, ID, bidang, atau status..."></label>`;
+  }
+
+  function enhancePackagePanelV16414(panel,key){
+    const toolbar=panel.querySelector('.paket-toolbar-v95');
+    if(!toolbar)return false;
+    panel.dataset.fastPanelKeyV16414=key;
+    let input=toolbar.querySelector('input[placeholder*="Cari"],input[placeholder*="cari"]');
+    if(input)bindLocalSearchV16414(input,panel,key);
+    if(roleV16414()==='VERIFIKATOR_PBJ'&&isPbjPackageMenuV16414()&&!toolbar.querySelector('.fast-filter-field-v16414')){
+      const names=activeFieldNamesV16414();
+      const wrap=document.createElement('div');wrap.className='fast-package-field-wrap-v16414';wrap.innerHTML=fieldSelectHtmlV16414(key,names);
+      toolbar.insertBefore(wrap,toolbar.querySelector('input')||toolbar.firstChild);
+    }
+    scheduleLocalFilterV16414(panel,key);return true;
+  }
+
+  function enhanceNonPanelV16414(panel,key){
+    if(!panel.querySelector('.non-list-v83'))return false;
+    panel.dataset.fastPanelKeyV16414=key;
+    let toolbar=panel.querySelector('.filter-card .toolbar');
+    if(!toolbar){
+      const card=document.createElement('div');card.className='filter-card fast-generated-filter-v16414';card.innerHTML='<div class="toolbar"></div>';
+      panel.querySelector('.non-list-v83')?.insertAdjacentElement('beforebegin',card);toolbar=card.querySelector('.toolbar');
+    }
+    let input=toolbar.querySelector('input[placeholder*="Cari"],input[placeholder*="cari"]');
+    if(!input){const holder=document.createElement('div');holder.innerHTML=searchHtmlV16414(key);input=holder.firstElementChild.querySelector('input');toolbar.appendChild(holder.firstElementChild);}
+    bindLocalSearchV16414(input,panel,key);
+    if(roleV16414()==='VERIFIKATOR_PBJ'&&!toolbar.querySelector('.fast-filter-field-v16414')){
+      const holder=document.createElement('div');holder.innerHTML=fieldSelectHtmlV16414(key,activeFieldNamesV16414());toolbar.insertBefore(holder.firstElementChild,toolbar.firstChild);
+    }
+    scheduleLocalFilterV16414(panel,key);return true;
+  }
+
+  function enhancePaymentPanelV16414(panel,key){
+    if(!panel.querySelector('.payment-list-v138'))return false;
+    panel.dataset.fastPanelKeyV16414=key;
+    let toolbar=panel.querySelector('.fast-payment-filter-v16414');
+    if(!toolbar){
+      toolbar=document.createElement('div');toolbar.className='fast-payment-filter-v16414';
+      toolbar.innerHTML=`${searchHtmlV16414(key)}${fieldSelectHtmlV16414(key,activeFieldNamesV16414())}<div class="fast-result-v16414"><span data-fast-result-count-v16414>0</span> data tampil</div>`;
+      const anchor=panel.querySelector('.payment-source-current-v1641')||panel.querySelector('.payment-source-tabs-v1641')||panel.querySelector('.panel-title-row');
+      anchor?.insertAdjacentElement('afterend',toolbar);
+    }
+    const input=toolbar.querySelector('input[type="search"]');bindLocalSearchV16414(input,panel,key);
+    scheduleLocalFilterV16414(panel,key);return true;
+  }
+
+  function bindGenericSearchesV16414(){
+    document.querySelectorAll('#contentArea input[placeholder*="Cari"],#contentArea input[placeholder*="cari"]').forEach(input=>{
+      if(input.closest('.modal-backdrop,.sbv-box-v95,.standard-picker-v96'))return;
+      if(isPlanningV16414()&&/nama kegiatan/i.test(input.placeholder||'')){bindPlanningSearchV16414(input);return;}
+      const panel=input.closest('section.panel');if(!panel||!filterNodesV16414(panel).length)return;
+      bindLocalSearchV16414(input,panel,menuKeyV16414());
+    });
+  }
+
+  function enhanceCurrentPageV16414(){
+    if(observerBusyV16414)return;observerBusyV16414=true;
+    try{
+      const key=menuKeyV16414();
+      if(isPlanningV16414()){
+        const input=[...document.querySelectorAll('#contentArea input')].find(el=>/cari nama kegiatan/i.test(el.placeholder||''));
+        bindPlanningSearchV16414(input);
+      }else{
+        document.querySelectorAll('#contentArea section.panel').forEach(panel=>{
+          if(enhancePaymentPanelV16414(panel,key))return;
+          if(enhancePackagePanelV16414(panel,key))return;
+          enhanceNonPanelV16414(panel,key);
+        });
+      }
+      bindGenericSearchesV16414();
+    }finally{observerBusyV16414=false;}
+  }
+  function scheduleEnhanceV16414(){
+    cancelAnimationFrame(enhanceFrameV16414);
+    enhanceFrameV16414=requestAnimationFrame(enhanceCurrentPageV16414);
+  }
+
+  if(typeof renderContent==='function'){
+    const renderContentBaseV16414=renderContent;
+    renderContent=function(){const result=renderContentBaseV16414.apply(this,arguments);scheduleEnhanceV16414();return result;};
+  }
+  if(typeof renderPerencanaan==='function'){
+    const renderPlanningBaseV16414=renderPerencanaan;
+    renderPerencanaan=function(){const result=renderPlanningBaseV16414.apply(this,arguments);scheduleEnhanceV16414();return result;};
+  }
+  if(typeof renderPaymentWorkspaceV138==='function'){
+    const renderPaymentBaseV16414=renderPaymentWorkspaceV138;
+    renderPaymentWorkspaceV138=function(){const result=renderPaymentBaseV16414.apply(this,arguments);scheduleEnhanceV16414();return result;};
+  }
+  if(typeof renderNonPengadaanV79==='function'){
+    const renderNonBaseV16414=renderNonPengadaanV79;
+    renderNonPengadaanV79=function(){const result=renderNonBaseV16414.apply(this,arguments);scheduleEnhanceV16414();return result;};
+  }
+
+  const content=document.getElementById('contentArea');
+  if(content&&typeof MutationObserver!=='undefined'){
+    const observer=new MutationObserver(()=>scheduleEnhanceV16414());
+    observer.observe(content,{childList:true,subtree:true});
+  }
+  scheduleEnhanceV16414();
+  window.__SIMPROV_PATCH_VERSION_V16414__=PATCH_VERSION_V16414;
+})();
+
+
+/* =========================================================
+   SIMPROV v164.15 - Upload ulang dokumen perbaikan
+   ---------------------------------------------------------
+   File dengan status PERBAIKAN mengganti record lama melalui
+   action revisiDokumen, bukan membuat upload awal duplikat.
+   ========================================================= */
+(function(){
+  const uploadSemuaDokV16415Base = uploadSemuaDokV96;
+  uploadSemuaDokV96 = async function(idKegiatan){
+    document.querySelectorAll('.dok-file-v96').forEach(function(inp){
+      if(!inp.files || !inp.files.length || inp.dataset.repair === '1') return;
+      const jenis = String(inp.dataset.jenis || '');
+      const ctx = String(inp.dataset.ctx || 'PGD');
+      const source = ctx === 'NON' ? (dashboard?.dokumenNonPengadaan || []) : (dashboard?.dokumen || []);
+      const existing = source.find(function(d){
+        const sameActivity = String(d.id_kegiatan || '') === String(idKegiatan || '');
+        const sameType = typeof dokKeyV94 === 'function'
+          ? dokKeyV94(d.jenis_dokumen) === dokKeyV94(jenis)
+          : String(d.jenis_dokumen || '').toUpperCase() === jenis.toUpperCase();
+        const status = String(d.status_verifikasi || '').toUpperCase();
+        return sameActivity && sameType && ['PERBAIKAN','PERBAIKAN DOKUMEN','DITOLAK'].includes(status);
+      });
+      if(existing){
+        inp.dataset.repair = '1';
+        inp.dataset.idd = ctx === 'NON' ? String(existing.id_dokumen_non || '') : String(existing.id_dokumen || '');
+      }
+    });
+    return uploadSemuaDokV16415Base.apply(this, arguments);
+  };
+  window.__SIMPROV_PATCH_VERSION_V16415__='164.15';
+})();
+
+/* =========================================================
+   SIMPROV v164.17 - Sinkron kesiapan Pengajuan Pembayaran
+   ========================================================= */
+(function(){
+  const READY_DOCS_V16417=[
+    'Hasil Survey Harga',
+    'Spesifikasi Teknis dan HPS',
+    'Kuitansi / Nota / Invoice',
+    'Berita Acara Pemeriksaan Barang/Pekerjaan',
+    'Berita Acara Serah Terima',
+    'Faktur Pembelian'
+  ];
+  const key=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+  const approved=status=>{
+    const s=String(status||'').toUpperCase().replace(/_/g,' ').trim();
+    return s==='DISETUJUI'||s==='DISETUJUI PBJ'||s.startsWith('DISETUJUI');
+  };
+  const validDoc=doc=>['VALID','VALID DOKUMEN','VALID KEUANGAN'].includes(String(doc?.status_verifikasi||'').toUpperCase().trim());
+
+  function syncPaymentReadyLocalV16417(idKegiatan){
+    if(typeof paymentWorkspaceV138==='undefined'||!paymentWorkspaceV138)return;
+    const activity=(paymentWorkspaceV138.kegiatan||[]).find(item=>String(item.id_kegiatan)===String(idKegiatan));
+    if(!activity)return;
+    const plan=(dashboard?.perencanaan||[]).find(item=>String(item.id_kegiatan)===String(idKegiatan));
+    const method=String(activity.metode_pemilihan||plan?.metode_pemilihan||'').toUpperCase().trim();
+    if(method!=='BELANJA LANGSUNG')return;
+
+    const latest={};
+    (dashboard?.dokumen||[])
+      .filter(doc=>String(doc.id_kegiatan)===String(idKegiatan)&&(doc.url_file||doc.nama_file))
+      .sort((a,b)=>Number(a._row||0)-Number(b._row||0))
+      .forEach(doc=>{latest[key(doc.jenis_dokumen)]=doc;});
+
+    let valid=0;
+    const missing=[];
+    const waiting=[];
+    READY_DOCS_V16417.forEach(name=>{
+      const doc=latest[key(name)];
+      if(!doc)missing.push(name);
+      else if(!validDoc(doc))waiting.push(name);
+      else valid++;
+    });
+
+    const planningApproved=approved(activity.status_perencanaan||plan?.status_perencanaan);
+    activity.payment_ready=planningApproved&&missing.length===0&&waiting.length===0;
+    activity.payment_valid_process=valid;
+    activity.payment_required_process=READY_DOCS_V16417.length;
+    activity.payment_reason=!planningApproved
+      ?'Perencanaan belum disetujui Verifikator PBJ'
+      :missing.length
+        ?`Lengkapi dokumen awal sampai Faktur Pembelian (${valid}/${READY_DOCS_V16417.length} valid)`
+        :waiting.length
+          ?`Menunggu validasi Verifikator PBJ (${valid}/${READY_DOCS_V16417.length} valid)`
+          :'Enam dokumen awal sudah lengkap dan valid';
+  }
+  window.syncPaymentReadyLocalV16417=syncPaymentReadyLocalV16417;
+
+  /* Validasi satuan juga langsung memperbarui kesiapan kegiatan pada
+     workspace pembayaran yang sudah pernah dimuat. */
+  if(typeof verifDokV96==='function'){
+    const baseVerifyV16417=verifDokV96;
+    verifDokV96=async function(idDok,status,ctx){
+      const doc=(dashboard?.[ctx==='NON'?'dokumenNonPengadaan':'dokumen']||[])
+        .find(item=>String(item[ctx==='NON'?'id_dokumen_non':'id_dokumen'])===String(idDok));
+      const result=await baseVerifyV16417.apply(this,arguments);
+      if(ctx!=='NON'&&doc?.id_kegiatan)syncPaymentReadyLocalV16417(doc.id_kegiatan);
+      return result;
+    };
+  }
+
+  /* Sisipkan sinkronisasi pada validasi massal aktif tanpa request tambahan. */
+  const baseBulkV16417=window.bulkValidateProcDocsV16413;
+  if(typeof baseBulkV16417==='function'){
+    window.bulkValidateProcDocsV16413=async function(id,button){
+      const result=await baseBulkV16417.apply(this,arguments);
+      syncPaymentReadyLocalV16417(id);
+      return result;
+    };
+  }
+})();
+
+/* =========================================================
+   SIMPROV v164.18 - Stabilitas Validasi PBJ & Pengajuan BL
+   ---------------------------------------------------------
+   - Validasi massal tetap satu request dan memakai sesi server.
+   - Kesiapan Pengajuan Pembayaran disinkronkan tanpa reload dashboard.
+   - Pengajuan berstatus SELESAI tidak menyembunyikan paket selamanya.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16418='164.18';
+  let paymentSyncBusyV16418=false;
+
+  function upperV16418(value){return String(value==null?'':value).trim().toUpperCase();}
+  function isPaymentMenuV16418(){
+    return ['Surat','Antrean Persetujuan Pengajuan','Riwayat Persetujuan Pengajuan','Antrean Verifikasi','Riwayat Verifikasi','Antrean Pembayaran Bendahara','Riwayat Pembayaran Bendahara'].includes(String(activeMenu||''));
+  }
+  function isActivePaymentV16418(row){
+    const status=upperV16418(row?.status_pengajuan||'DRAFT');
+    return status!=='SELESAI'&&status!=='DIBATALKAN'&&status!=='DIHAPUS';
+  }
+
+  async function refreshPaymentWorkspaceSilentV16418({render=false}={}){
+    if(paymentSyncBusyV16418)return paymentWorkspaceV138;
+    paymentSyncBusyV16418=true;
+    try{
+      const response=await apiPost({action:'getPaymentWorkspaceV138'});
+      if(!response?.success)throw new Error(response?.message||'Data pengajuan pembayaran gagal disinkronkan.');
+      paymentWorkspaceV138={...response,loaded:true,loading:false,savedAt:Date.now()};
+      if(render&&isPaymentMenuV16418()&&typeof renderPaymentWorkspaceV138==='function')renderPaymentWorkspaceV138();
+      return paymentWorkspaceV138;
+    }catch(error){
+      console.warn('PAYMENT_SYNC_V16418',error);
+      return paymentWorkspaceV138;
+    }finally{paymentSyncBusyV16418=false;}
+  }
+  window.refreshPaymentWorkspaceSilentV16418=refreshPaymentWorkspaceSilentV16418;
+
+  /* Form lama menyembunyikan kegiatan yang pernah memiliki pengajuan,
+     termasuk pengajuan yang sudah SELESAI. Backend sebenarnya hanya melarang
+     duplikasi pengajuan aktif, sehingga frontend disamakan dengan aturan itu. */
+  if(typeof paymentFormV138==='function'){
+    const paymentFormBaseV16418=paymentFormV138;
+    paymentFormV138=function(){
+      const original=Array.isArray(paymentWorkspaceV138?.pengajuan)?paymentWorkspaceV138.pengajuan:[];
+      paymentWorkspaceV138.pengajuan=original.filter(isActivePaymentV16418);
+      try{return paymentFormBaseV16418.apply(this,arguments);}
+      finally{paymentWorkspaceV138.pengajuan=original;}
+    };
+  }
+
+  /* Saat form baru dibuka, tampilkan form langsung lalu sinkronkan workspace
+     di belakang layar. Hanya panel pembayaran yang dirender ulang. */
+  if(typeof openPaymentFormV138==='function'){
+    const openPaymentFormBaseV16418=openPaymentFormV138;
+    openPaymentFormV138=function(id='',activity=''){
+      const result=openPaymentFormBaseV16418.apply(this,arguments);
+      if(!id){
+        refreshPaymentWorkspaceSilentV16418().then(()=>{
+          if(paymentTabV138==='FORM'&&!paymentEditIdV138&&typeof renderPaymentWorkspaceV138==='function')renderPaymentWorkspaceV138();
+        });
+      }
+      return result;
+    };
+  }
+
+  /* Setelah validasi massal selesai, data kesiapan paket diperbarui ringan.
+     Tidak merender menu paket yang sedang dibuka. */
+  if(typeof window.bulkValidateProcDocsV16413==='function'){
+    const bulkValidateBaseV16418=window.bulkValidateProcDocsV16413;
+    window.bulkValidateProcDocsV16413=async function(id,button){
+      const result=await bulkValidateBaseV16418.apply(this,arguments);
+      if(typeof syncPaymentReadyLocalV16417==='function')syncPaymentReadyLocalV16417(id);
+      refreshPaymentWorkspaceSilentV16418();
+      return result;
+    };
+  }
+
+  /* Validasi satuan juga menyinkronkan daftar kegiatan pembayaran. */
+  if(typeof verifDokV96==='function'){
+    const verifyOneBaseV16418=verifDokV96;
+    verifDokV96=async function(idDok,status,ctx){
+      const result=await verifyOneBaseV16418.apply(this,arguments);
+      if(ctx!=='NON')refreshPaymentWorkspaceSilentV16418();
+      return result;
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V16418__=PATCH_VERSION_V16418;
+})();
+
+/* =========================================================
+   SIMPROV v164.19 - Satu Pengajuan per Paket
+   ---------------------------------------------------------
+   - Paket yang sudah pernah dibuatkan pengajuan tetap tampil
+     pada dropdown sebagai informasi, tetapi tidak dapat dipilih.
+   - Label dropdown memuat ID Paket, Nama Paket, dan Status.
+   - Draft, proses berjalan, perbaikan, maupun selesai semuanya
+     mengunci paket dari pembuatan pengajuan baru.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16419='164.19';
+
+  function paymentStatusTextV16419(row){
+    const raw=String(row?.status_pengajuan||'DRAFT').trim().toUpperCase();
+    if(typeof paymentStatusLabelV138==='function'){
+      try{return String(paymentStatusLabelV138(raw)||raw).trim();}catch(e){}
+    }
+    return raw.replace(/_/g,' ');
+  }
+
+  function paymentTimeV16419(row){
+    const values=[row?.updated_at,row?.created_at,row?.tanggal_bayar];
+    for(const value of values){
+      const time=new Date(value||0).getTime();
+      if(Number.isFinite(time)&&time>0)return time;
+    }
+    return Number(row?._row||0);
+  }
+
+  function latestPaymentByActivityV16419(rows){
+    const map=new Map();
+    (rows||[]).forEach(row=>{
+      const id=String(row?.id_kegiatan||'').trim();
+      if(!id)return;
+      const current=map.get(id);
+      if(!current||paymentTimeV16419(row)>=paymentTimeV16419(current))map.set(id,row);
+    });
+    return map;
+  }
+
+  function activityOptionLabelV16419(activity,payment){
+    const id=String(activity?.id_kegiatan||'-').trim();
+    const name=String(activity?.nama_kegiatan||'-').trim();
+    let status='SIAP';
+    if(payment)status=paymentStatusTextV16419(payment);
+    else if(!activity?.payment_ready)status='BELUM SIAP';
+    return `ID Paket: ${id} | ${name} | Status: ${status}`;
+  }
+
+  function duplicatePaymentForActivityV16419(activityId,currentPaymentId=''){
+    const id=String(activityId||'').trim();
+    const current=String(currentPaymentId||'').trim();
+    if(!id)return null;
+    return (paymentWorkspaceV138?.pengajuan||[]).find(row=>
+      String(row?.id_kegiatan||'').trim()===id&&
+      String(row?.id_pengajuan||'').trim()!==current
+    )||null;
+  }
+
+  if(typeof paymentFormV138==='function'){
+    const paymentFormBaseV16419=paymentFormV138;
+    paymentFormV138=function(){
+      const originalPayments=Array.isArray(paymentWorkspaceV138?.pengajuan)
+        ? paymentWorkspaceV138.pengajuan
+        : [];
+      const currentPaymentId=String(paymentEditIdV138||'').trim();
+      const currentPayment=originalPayments.find(row=>String(row?.id_pengajuan||'').trim()===currentPaymentId)||null;
+
+      /* Prefill dari tombol paket tidak boleh mempertahankan kegiatan yang
+         sudah memiliki pengajuan, termasuk pengajuan berstatus SELESAI. */
+      if(!currentPayment&&paymentPrefillActivityV138){
+        const blocked=originalPayments.some(row=>String(row?.id_kegiatan||'')===String(paymentPrefillActivityV138));
+        if(blocked)paymentPrefillActivityV138='';
+      }
+
+      /* Form lama menyaring kegiatan yang pernah dipakai. Untuk memberikan
+         informasi lengkap, panggil renderer dengan hanya pengajuan yang sedang
+         diedit, lalu susun ulang seluruh option dengan status dan penguncian. */
+      paymentWorkspaceV138.pengajuan=currentPayment?[currentPayment]:[];
+      let html='';
+      try{html=paymentFormBaseV16419.apply(this,arguments);}
+      finally{paymentWorkspaceV138.pengajuan=originalPayments;}
+
+      const activities=Array.isArray(paymentWorkspaceV138?.kegiatan)
+        ? paymentWorkspaceV138.kegiatan
+        : [];
+      const latestByActivity=latestPaymentByActivityV16419(originalPayments);
+      const selected=String(currentPayment?.id_kegiatan||paymentPrefillActivityV138||'');
+      const options=['<option value="">Pilih kegiatan</option>'];
+
+      activities.forEach(activity=>{
+        const activityId=String(activity?.id_kegiatan||'');
+        const existing=latestByActivity.get(activityId)||null;
+        const isCurrent=!!currentPayment&&String(currentPayment.id_kegiatan||'')===activityId;
+        const disabled=(!isCurrent&&!!existing)||(!isCurrent&&!activity?.payment_ready);
+        options.push(`<option value="${esc(activityId)}" ${activityId===selected?'selected':''} ${disabled?'disabled':''}>${esc(activityOptionLabelV16419(activity,existing))}</option>`);
+      });
+
+      return html.replace(
+        /(<select\s+id="payActivityV138"[^>]*>)[\s\S]*?(<\/select>)/,
+        `$1${options.join('')}$2`
+      );
+    };
+  }
+
+  if(typeof savePaymentDraftV138==='function'){
+    const savePaymentDraftBaseV16419=savePaymentDraftV138;
+    savePaymentDraftV138=async function(){
+      const select=document.getElementById('payActivityV138');
+      const activityId=String(select?.value||paymentPrefillActivityV138||'').trim();
+      const duplicate=duplicatePaymentForActivityV16419(activityId,paymentEditIdV138);
+      if(duplicate){
+        alert(`Paket ini sudah memiliki pengajuan pembayaran dengan status ${paymentStatusTextV16419(duplicate)}. Buka pengajuan yang sudah ada dari Daftar Pengajuan Pembayaran.`);
+        return;
+      }
+      return savePaymentDraftBaseV16419.apply(this,arguments);
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V16419__=PATCH_VERSION_V16419;
+})();
+
+
+/* =========================================================
+   SIMPROV v164.20 - Stabilitas TTE Pengajuan Pembayaran
+   ---------------------------------------------------------
+   Simpan perubahan dan pengajuan TTE dilakukan dalam satu
+   request agar tidak terkena timeout di antara dua proses.
+   Tampilan diperbarui dari state lokal tanpa reload dashboard.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16420='164.20';
+  let paymentTteBusyV16420=false;
+
+  function paymentStoredValidationV16420(p){
+    if(!p)return 'Pengajuan tidak ditemukan.';
+    const missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+    if(missing.length)return 'Dokumen wajib belum lengkap:\n- '+missing.join('\n- ');
+    const rincian=parseJsonV138(p.rincian_json),rekening=parseJsonV138(p.rekening_json),amount=toNumber(p.jumlah_pengajuan),rt=paymentTotalRincianV138(rincian),at=paymentTotalRincianV138(rekening);
+    if(!rincian.length)return 'Minimal satu rincian penggunaan anggaran wajib diisi.';
+    if(!rekening.length)return 'Minimal satu rekening penerima wajib diisi.';
+    if(Math.abs(rt-amount)>0.5)return 'Total rincian belanja harus sama dengan jumlah pengajuan.';
+    if(Math.abs(at-amount)>0.5)return 'Total rekening tujuan harus sama dengan jumlah pengajuan.';
+    return '';
+  }
+
+  function applyPaymentSubmittedV16420(id,response,data){
+    let p=paymentByIdV138(id);
+    if(!p&&response?.pengajuan){
+      p={...response.pengajuan};
+      paymentWorkspaceV138.pengajuan=Array.isArray(paymentWorkspaceV138.pengajuan)?paymentWorkspaceV138.pengajuan:[];
+      paymentWorkspaceV138.pengajuan.push(p);
+    }
+    if(p){
+      if(data){
+        Object.assign(p,data,{
+          jumlah_pengajuan:paymentTotalRincianV138(data.rincian||[]),
+          rincian_json:JSON.stringify(data.rincian||[]),
+          rekening_json:JSON.stringify(data.rekening||[])
+        });
+      }
+      Object.assign(p,{
+        id_pengajuan:id,
+        status_pengajuan:response?.status_pengajuan||'MENUNGGU PERSETUJUAN PIMPINAN',
+        tahap_aktif:response?.tahap_aktif||'PIMPINAN',
+        tte_bidang_oleh:response?.tte_bidang_oleh||currentUser?.nama||'',
+        tte_bidang_waktu:response?.tte_bidang_waktu||new Date().toISOString(),
+        tte_bidang_token:response?.tte_bidang_token||p.tte_bidang_token||'',
+        updated_at:new Date().toISOString()
+      });
+    }
+    paymentTabV138='DAFTAR';
+    paymentEditIdV138='';
+    paymentPrefillActivityV138='';
+    if(typeof paymentDataUnlockedV145!=='undefined')paymentDataUnlockedV145=false;
+    renderPaymentWorkspaceV138();
+    if(typeof showFastCacheNotice==='function')showFastCacheNotice(response?.message||'Pengajuan berhasil diberi TTE dan dikirim kepada Ketua Harian.');
+    if(typeof refreshPaymentWorkspaceSilentV16418==='function'){
+      setTimeout(()=>refreshPaymentWorkspaceSilentV16418({render:false}),200);
+    }else{
+      setTimeout(()=>loadPaymentWorkspaceV138(true),250);
+    }
+  }
+
+  window.submitPaymentFromListV145=async function(id){
+    if(paymentTteBusyV16420)return;
+    const p=paymentByIdV138(id),err=paymentStoredValidationV16420(p);
+    if(err)return alert(err);
+    const ok=await confirmActionV133({
+      title:'TTE & Ajukan Verifikasi',
+      message:'Nota Dinas Bidang dan SPTJM akan diberi TTE, lalu pengajuan dikirim kepada Ketua Harian. Data tidak dapat diedit sampai dikembalikan.',
+      confirmText:'Ya, TTE & Ajukan'
+    });
+    if(!ok)return;
+    paymentTteBusyV16420=true;
+    showLoading('Memberi TTE dan mengajukan kepada Ketua Harian...');
+    try{
+      const r=await apiPost({action:'submitPaymentFastV16420',id_pengajuan:id});
+      if(!r?.success)throw new Error(r?.message||'Pengajuan gagal diproses.');
+      applyPaymentSubmittedV16420(r.id_pengajuan||id,r,null);
+    }catch(e){
+      alert(e?.message||String(e));
+    }finally{
+      paymentTteBusyV16420=false;
+      hideLoading();
+    }
+  };
+
+  window.submitPaymentFormV145=async function(id){
+    if(paymentTteBusyV16420)return;
+    const p=paymentByIdV138(id);
+    const missing=paymentRequiredDocsV138(p).filter(j=>!paymentDocV138(p,j));
+    if(missing.length)return alert('Dokumen wajib belum lengkap:\n- '+missing.join('\n- '));
+
+    const data=collectPaymentFormV138();
+    const activity=(paymentWorkspaceV138.kegiatan||[]).find(k=>String(k.id_kegiatan)===String(data.id_kegiatan));
+    const budget=toNumber(activity?.jumlah||0),rincianTotal=paymentTotalRincianV138(data.rincian),rekeningTotal=paymentTotalRincianV138(data.rekening);
+    if(!data.id_kegiatan)return alert('Pilih kegiatan terlebih dahulu.');
+    if(!data.rincian.length)return alert('Isi minimal satu rincian penggunaan anggaran.');
+    if(data.rekening.length&&!data.rekening.every(x=>x.uraian&&x.nama_rekening&&x.nama_bank&&x.nomor_rekening&&x.jumlah>0))return alert('Lengkapi seluruh data rekening tujuan.');
+    if(budget>0&&rincianTotal>budget)return alert(`Jumlah pengajuan ${rupiah(rincianTotal)} melebihi pagu kegiatan ${rupiah(budget)}.`);
+    if(!data.rekening.length||Math.abs(rekeningTotal-rincianTotal)>0.5)return alert('Total rekening tujuan harus sama dengan jumlah pengajuan.');
+
+    const ok=await confirmActionV133({
+      title:'TTE & Ajukan Verifikasi',
+      message:'Perubahan terakhir akan disimpan. Nota Dinas Bidang dan SPTJM kemudian diberi TTE dan pengajuan dikirim kepada Ketua Harian.',
+      confirmText:'Ya, Simpan, TTE & Ajukan'
+    });
+    if(!ok)return;
+
+    paymentTteBusyV16420=true;
+    showLoading('Menyimpan, memberi TTE, dan mengajukan kepada Ketua Harian...');
+    try{
+      const r=await apiPost({action:'saveAndSubmitPaymentV16420',data});
+      if(!r?.success)throw new Error(r?.message||'Pengajuan gagal diproses.');
+      const paymentId=r.id_pengajuan||data.id_pengajuan||id;
+      paymentEditIdV138=paymentId;
+      applyPaymentSubmittedV16420(paymentId,r,data);
+    }catch(e){
+      alert(e?.message||String(e));
+    }finally{
+      paymentTteBusyV16420=false;
+      hideLoading();
+    }
+  };
+
+  window.__SIMPROV_PATCH_VERSION_V16420__=PATCH_VERSION_V16420;
+})();
+
+/* =========================================================
+   SIMPROV v164.21 - Lanjutkan Draft & Penandatangan Honorarium
+   ---------------------------------------------------------
+   - Paket yang memiliki pengajuan DRAFT/PERBAIKAN BIDANG dapat
+     dipilih untuk melanjutkan pengajuan yang sama.
+   - Paket yang sedang diproses atau sudah selesai tetap terkunci.
+   - Nama dan jabatan penandatangan Honorarium diisi manual per versi.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16421='164.21';
+  const EDITABLE_PAYMENT_STATUS_V16421=new Set(['DRAFT','PERBAIKAN BIDANG']);
+
+  function upperV16421(value){return String(value==null?'':value).trim().toUpperCase();}
+  function paymentTimeV16421(row){
+    for(const value of [row?.updated_at,row?.created_at,row?.tanggal_bayar]){
+      const time=new Date(value||0).getTime();
+      if(Number.isFinite(time)&&time>0)return time;
+    }
+    return Number(row?._row||0);
+  }
+  function latestPaymentMapV16421(){
+    const map=new Map();
+    (paymentWorkspaceV138?.pengajuan||[]).forEach(row=>{
+      const id=String(row?.id_kegiatan||'').trim();if(!id)return;
+      const current=map.get(id);
+      if(!current||paymentTimeV16421(row)>=paymentTimeV16421(current))map.set(id,row);
+    });
+    return map;
+  }
+  function paymentStatusLabelSafeV16421(row){
+    const status=upperV16421(row?.status_pengajuan||'DRAFT');
+    try{return String(paymentStatusLabelV138(status)||status).trim();}catch(e){return status.replace(/_/g,' ');}
+  }
+  function paymentOptionTextV16421(activity,payment){
+    const id=String(activity?.id_kegiatan||'-').trim();
+    const name=String(activity?.nama_kegiatan||'-').trim();
+    const status=payment?paymentStatusLabelSafeV16421(payment):(activity?.payment_ready?'SIAP':'BELUM SIAP');
+    return `ID Paket: ${id} | ${name} | Status: ${status}`;
+  }
+  function editableDraftForActivityV16421(activityId){
+    const id=String(activityId||'').trim();if(!id)return null;
+    const row=latestPaymentMapV16421().get(id)||null;
+    return row&&EDITABLE_PAYMENT_STATUS_V16421.has(upperV16421(row.status_pengajuan))?row:null;
+  }
+
+  window.handlePaymentActivityChangeV16421=function(select){
+    const activityId=String(select?.value||'').trim();
+    if(!activityId){paymentEditIdV138='';paymentPrefillActivityV138='';renderPaymentWorkspaceV138();return;}
+    const draft=editableDraftForActivityV16421(activityId);
+    if(draft){
+      paymentEditIdV138=String(draft.id_pengajuan||'');
+      paymentPrefillActivityV138=activityId;
+      renderPaymentWorkspaceV138();
+      if(typeof showFastCacheNotice==='function')showFastCacheNotice('Draft pengajuan dibuka. Lanjutkan pengisian data yang belum lengkap.');
+      return;
+    }
+    paymentEditIdV138='';
+    paymentPrefillActivityV138=activityId;
+    renderPaymentWorkspaceV138();
+  };
+
+  if(typeof paymentFormV138==='function'){
+    const paymentFormBaseV16421=paymentFormV138;
+    paymentFormV138=function(){
+      let html=String(paymentFormBaseV16421.apply(this,arguments)||'');
+      const activities=Array.isArray(paymentWorkspaceV138?.kegiatan)?paymentWorkspaceV138.kegiatan:[];
+      const latest=latestPaymentMapV16421();
+      const current=paymentByIdV138(paymentEditIdV138);
+      const selected=String(current?.id_kegiatan||paymentPrefillActivityV138||'');
+      const options=['<option value="">Pilih kegiatan</option>'];
+
+      activities.forEach(activity=>{
+        const id=String(activity?.id_kegiatan||'');
+        const existing=latest.get(id)||null;
+        const isCurrent=!!current&&String(current.id_kegiatan||'')===id;
+        const editableExisting=!!existing&&EDITABLE_PAYMENT_STATUS_V16421.has(upperV16421(existing.status_pengajuan));
+        const disabled=!isCurrent&&((!!existing&&!editableExisting)||(!existing&&!activity?.payment_ready));
+        options.push(`<option value="${esc(id)}" ${id===selected?'selected':''} ${disabled?'disabled':''}>${esc(paymentOptionTextV16421(activity,existing))}</option>`);
+      });
+
+      html=html.replace(
+        /(<select\s+id="payActivityV138"[^>]*>)[\s\S]*?(<\/select>)/,
+        function(_,open,close){
+          const updated=open.replace(/onchange="[^"]*"/, 'onchange="handlePaymentActivityChangeV16421(this)"');
+          return updated+options.join('')+close;
+        }
+      );
+      return html;
+    };
+  }
+
+  if(typeof savePaymentDraftV138==='function'){
+    const savePaymentDraftBaseV16421=savePaymentDraftV138;
+    savePaymentDraftV138=async function(){
+      if(!paymentEditIdV138){
+        const activityId=String(document.getElementById('payActivityV138')?.value||paymentPrefillActivityV138||'').trim();
+        const draft=editableDraftForActivityV16421(activityId);
+        if(draft)paymentEditIdV138=String(draft.id_pengajuan||'');
+      }
+      return savePaymentDraftBaseV16421.apply(this,arguments);
+    };
+  }
+
+  if(typeof openPaymentFormV138==='function'){
+    const openPaymentFormBaseV16421=openPaymentFormV138;
+    openPaymentFormV138=function(id='',activity=''){
+      if(!id&&activity){
+        const draft=editableDraftForActivityV16421(activity);
+        if(draft)return openPaymentFormBaseV16421.call(this,String(draft.id_pengajuan||''),activity);
+      }
+      return openPaymentFormBaseV16421.apply(this,arguments);
+    };
+  }
+
+  window.__SIMPROV_PATCH_VERSION_V16421__=PATCH_VERSION_V16421;
+})();
+
+
+/* =========================================================
+   SIMPROV v164.22 - Navigasi SPTJM & Progress Upload Honorarium
+   ---------------------------------------------------------
+   - Tombol SPTJM mengikuti status Pengajuan Pembayaran paket.
+   - Draft dibuka untuk dilanjutkan; proses aktif dibuka pada kartu pengajuan.
+   - Upload dokumen Honorarium menampilkan progres 0-100%.
+   ========================================================= */
+(function(){
+  'use strict';
+
+  const PATCH_VERSION_V16422='164.22';
+  const EDITABLE_PAYMENT_STATUS_V16422=new Set(['DRAFT','PERBAIKAN BIDANG']);
+  let paymentNavigationBusyV16422=false;
+  let honorUploadPulseV16422=null;
+  let honorUploadProgressV16422=0;
+
+  function upperV16422(value){return String(value==null?'':value).trim().toUpperCase();}
+  function paymentRowTimeV16422(row){
+    for(const value of [row?.updated_at,row?.created_at,row?.tanggal_bayar]){
+      const time=new Date(value||0).getTime();
+      if(Number.isFinite(time)&&time>0)return time;
+    }
+    return Number(row?._row||0);
+  }
+  function allPaymentRowsV16422(){
+    const map=new Map();
+    const sources=[
+      ...(Array.isArray(dashboard?.pengajuanPembayaranV138)?dashboard.pengajuanPembayaranV138:[]),
+      ...(Array.isArray(paymentWorkspaceV138?.pengajuan)?paymentWorkspaceV138.pengajuan:[])
+    ];
+    sources.forEach(row=>{
+      const key=String(row?.id_pengajuan||`${row?.id_kegiatan||''}|${row?.status_pengajuan||''}`);
+      const previous=map.get(key);
+      if(!previous||paymentRowTimeV16422(row)>=paymentRowTimeV16422(previous))map.set(key,row);
+    });
+    return [...map.values()];
+  }
+  function latestPaymentForActivityV16422(activityId){
+    const id=String(activityId||'').trim();
+    return allPaymentRowsV16422()
+      .filter(row=>String(row?.id_kegiatan||'').trim()===id)
+      .sort((a,b)=>paymentRowTimeV16422(b)-paymentRowTimeV16422(a))[0]||null;
+  }
+  function paymentButtonStateV16422(activityId){
+    const payment=latestPaymentForActivityV16422(activityId);
+    if(!payment)return {label:'Buat di Sistem',mode:'CREATE',payment:null};
+    const status=upperV16422(payment.status_pengajuan||'DRAFT');
+    if(EDITABLE_PAYMENT_STATUS_V16422.has(status))return {label:'Lanjutkan Draft',mode:'EDIT',payment};
+    return {label:'Lihat Pengajuan',mode:'VIEW',payment};
+  }
+
+  function patchSptjmButtonV16422(root,k){
+    if(!root||!k)return;
+    try{if(typeof isBLV94==='function'&&!isBLV94(k))return;}catch(e){}
+    const role=upperV16422(typeof actualRoleV133==='function'?actualRoleV133():currentUser?.role);
+    if(!['BIDANG','ADMIN'].includes(role))return;
+    const state=paymentButtonStateV16422(k.id_kegiatan);
+    root.querySelectorAll('tbody tr').forEach(row=>{
+      const cells=row.querySelectorAll('td');if(cells.length<4)return;
+      const label=String(cells[0]?.textContent||'').replace(/\s+/g,' ').trim();
+      const isSptjm=(typeof dokKeyV94==='function')
+        ?dokKeyV94(label)===dokKeyV94('SPTJM')
+        :upperV16422(label)==='SPTJM';
+      if(!isSptjm)return;
+      const actionCell=cells[3];
+      let button=[...actionCell.querySelectorAll('button')].find(btn=>/BUAT DI SISTEM|BUAT SPTJM|LANJUTKAN DRAFT|LIHAT PENGAJUAN/i.test(btn.textContent||''));
+      if(!button){
+        const wrap=actionCell.querySelector('.document-helper-actions-v149')||actionCell;
+        button=document.createElement('button');wrap.appendChild(button);
+      }
+      button.type='button';
+      button.textContent=state.label;
+      button.setAttribute('onclick',`openPaymentFromSptjmV16422('${String(k.id_kegiatan).replace(/'/g,"\\'")}')`);
+      button.className=state.mode==='VIEW'
+        ?'btn-soft document-system-btn-v149 payment-view-btn-v16422'
+        :'btn-green document-system-btn-v149';
+      button.title=state.mode==='EDIT'?'Lanjutkan pengisian draft pengajuan pembayaran':state.mode==='VIEW'?'Buka pengajuan pembayaran paket ini':'Buat SPTJM dan pengajuan pembayaran';
+    });
+  }
+
+  if(typeof dokumenTableV95==='function'){
+    const dokumenTableBaseV16422=dokumenTableV95;
+    dokumenTableV95=function(k,jenisList,ctx){
+      const html=dokumenTableBaseV16422.apply(this,arguments);
+      if((ctx||'PGD')!=='PGD')return html;
+      try{
+        const box=document.createElement('div');box.innerHTML=html;
+        patchSptjmButtonV16422(box,k);
+        return box.innerHTML;
+      }catch(e){return html;}
+    };
+  }
+
+  if(typeof pasangTombolHpsOptionalV121==='function'){
+    const helperBaseV16422=pasangTombolHpsOptionalV121;
+    pasangTombolHpsOptionalV121=function(k){
+      const result=helperBaseV16422.apply(this,arguments);
+      patchSptjmButtonV16422(document.getElementById('contentArea'),k);
+      return result;
+    };
+  }
+
+  if(typeof renderDetailPengadaanLangsungV123==='function'){
+    const renderDetailBaseV16422=renderDetailPengadaanLangsungV123;
+    renderDetailPengadaanLangsungV123=function(k){
+      const result=renderDetailBaseV16422.apply(this,arguments);
+      setTimeout(()=>patchSptjmButtonV16422(document.getElementById('contentArea'),k),0);
+      return result;
+    };
+    renderDetailPengadaanLangsungV95=function(k){return renderDetailPengadaanLangsungV123(k);};
+  }
+
+  if(typeof paymentCardV138==='function'){
+    const paymentCardBaseV16422=paymentCardV138;
+    paymentCardV138=function(p){
+      const html=paymentCardBaseV16422.apply(this,arguments);
+      try{
+        const box=document.createElement('div');box.innerHTML=html;
+        const card=box.querySelector('.payment-card-v138');
+        if(card){
+          card.dataset.activityId=String(p?.id_kegiatan||'');
+          card.dataset.paymentId=String(p?.id_pengajuan||'');
+        }
+        return box.innerHTML;
+      }catch(e){return html;}
+    };
+  }
+
+  function focusPaymentCardV16422(activityId){
+    const selector=`.payment-card-v138[data-activity-id="${CSS.escape(String(activityId||''))}"]`;
+    const card=document.querySelector(selector);if(!card)return false;
+    card.open=true;
+    card.scrollIntoView({behavior:'smooth',block:'start'});
+    card.classList.add('payment-focus-v16422');
+    setTimeout(()=>card.classList.remove('payment-focus-v16422'),1400);
+    return true;
+  }
+
+  window.openPaymentFromSptjmV16422=async function(activityId){
+    if(paymentNavigationBusyV16422)return;
+    const id=String(activityId||'').trim();if(!id)return;
+    paymentNavigationBusyV16422=true;
+    showLoading('Membuka pengajuan pembayaran...');
+    try{
+      activeMenu='Surat';
+      suratTabV133='PEMBAYARAN';
+      paymentPrefillActivityV138=id;
+      if(typeof paymentDataUnlockedV145!=='undefined')paymentDataUnlockedV145=true;
+      if(typeof renderMenu==='function')renderMenu();
+      if(typeof renderSummary==='function')renderSummary();
+      if(typeof renderContent==='function')renderContent();
+
+      await loadPaymentWorkspaceV138(true);
+      const payment=latestPaymentForActivityV16422(id);
+      if(!payment){
+        paymentEditIdV138='';
+        paymentPrefillActivityV138=id;
+        paymentTabV138='FORM';
+        renderPaymentWorkspaceV138();
+        window.scrollTo({top:0,behavior:'smooth'});
+        return;
+      }
+
+      const status=upperV16422(payment.status_pengajuan||'DRAFT');
+      if(EDITABLE_PAYMENT_STATUS_V16422.has(status)){
+        paymentEditIdV138=String(payment.id_pengajuan||'');
+        paymentPrefillActivityV138=id;
+        paymentTabV138='FORM';
+        renderPaymentWorkspaceV138();
+        window.scrollTo({top:0,behavior:'smooth'});
+        return;
+      }
+
+      paymentEditIdV138='';
+      paymentPrefillActivityV138='';
+      paymentTabV138='DAFTAR';
+      if(typeof setPaymentSourceTabV1641==='function'){
+        window.paymentSourceTabV1641='PENCATATAN_PENGADAAN';
+        setPaymentSourceTabV1641('PENCATATAN_PENGADAAN');
+      }else renderPaymentWorkspaceV138();
+      setTimeout(()=>{
+        if(!focusPaymentCardV16422(id)){
+          renderPaymentWorkspaceV138();
+          setTimeout(()=>focusPaymentCardV16422(id),80);
+        }
+      },80);
+    }catch(e){
+      alert(e?.message||String(e));
+    }finally{
+      paymentNavigationBusyV16422=false;
+      hideLoading();
+    }
+  };
+
+  function stopHonorUploadPulseV16422(){
+    if(honorUploadPulseV16422){clearInterval(honorUploadPulseV16422);honorUploadPulseV16422=null;}
+  }
+  function setHonorUploadProgressV16422(percent,detail){
+    const p=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
+    honorUploadProgressV16422=Math.max(honorUploadProgressV16422,p);
+    const wrap=document.getElementById('loadingProgressWrap');
+    const bar=document.getElementById('loadingProgressBar');
+    const pct=document.getElementById('loadingProgressPercent');
+    const text=document.getElementById('loadingProgressDetail');
+    if(wrap)wrap.classList.remove('hidden');
+    if(bar)bar.style.width=honorUploadProgressV16422+'%';
+    if(pct)pct.textContent=honorUploadProgressV16422+'%';
+    if(text&&detail)text.textContent=detail;
+  }
+  function startHonorUploadPulseV16422(){
+    stopHonorUploadPulseV16422();
+    honorUploadPulseV16422=setInterval(()=>{
+      if(honorUploadProgressV16422>=92)return;
+      const step=honorUploadProgressV16422<65?2:1;
+      setHonorUploadProgressV16422(Math.min(92,honorUploadProgressV16422+step),'Mengirim file ke penyimpanan...');
+    },300);
+  }
+  function fileBase64ProgressV16422(file,onProgress){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onprogress=event=>{if(event.lengthComputable&&onProgress)onProgress(event.loaded/event.total);};
+      reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');
+      reader.onerror=()=>reject(new Error(`File ${file.name} gagal dibaca.`));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  uploadNonDocsV155=async function(id){
+    const btn=document.getElementById('btnUploadNonV155');if(btn?.dataset.busy==='1')return;
+    const inputs=[...document.querySelectorAll('.non-doc-file-v155')].filter(input=>input.files?.length);
+    if(!inputs.length){alert('Pilih file PDF terlebih dahulu.');return;}
+
+    const files=[];
+    for(const input of inputs){
+      const file=input.files[0],jenis=input.dataset.jenis||'Dokumen';
+      if(file.size>2*1024*1024){alert(`${jenis}: ukuran file maksimal 2 MB.`);return;}
+      if(file.type&&file.type!=='application/pdf'){alert(`${jenis}: file harus PDF.`);return;}
+      files.push({input,file,jenis});
+    }
+
+    if(btn){btn.dataset.busy='1';btn.disabled=true;btn.textContent='Mengunggah...';}
+    honorUploadProgressV16422=0;
+    showLoading('Mengunggah dokumen Honorarium...');
+    setHonorUploadProgressV16422(0,`Membaca file 0/${files.length}`);
+
+    try{
+      const items=[];
+      for(let index=0;index<files.length;index++){
+        const item=files[index];
+        const baseStart=(index/files.length)*35;
+        const baseEnd=((index+1)/files.length)*35;
+        const fileBase64=await fileBase64ProgressV16422(item.file,ratio=>{
+          setHonorUploadProgressV16422(baseStart+(baseEnd-baseStart)*ratio,`Membaca file ${index+1}/${files.length}: ${item.file.name}`);
+        });
+        items.push({jenis_dokumen:item.jenis,file_name:item.file.name,mime_type:item.file.type||'application/pdf',file_base64:fileBase64});
+        setHonorUploadProgressV16422(baseEnd,`File ${index+1}/${files.length} siap diunggah`);
+      }
+
+      setHonorUploadProgressV16422(40,'Mengirim dokumen ke server...');
+      startHonorUploadPulseV16422();
+      const response=await apiPost({action:'uploadDokumenNonPengadaanBatchV155',user:currentUser,id_kegiatan:id,items});
+      stopHonorUploadPulseV16422();
+      if(!response?.success)throw new Error(response?.message||'Upload gagal');
+      setHonorUploadProgressV16422(96,'Memperbarui data dokumen...');
+
+      dashboard.dokumenNonPengadaan=dashboard.dokumenNonPengadaan||[];
+      (response.dokumen||[]).forEach(doc=>{
+        const existingIndex=dashboard.dokumenNonPengadaan.findIndex(old=>String(old.id_dokumen_non||'')===String(doc.id_dokumen_non||''));
+        if(existingIndex>=0)dashboard.dokumenNonPengadaan[existingIndex]=doc;else dashboard.dokumenNonPengadaan.push(doc);
+      });
+      const activity=kegiatanById(id);if(activity)activity.status_pencairan=response.status_paket||activity.status_pencairan;
+      writeDashboardCache(dashboard);
+      renderDetailNonPengadaanV95(activity);
+      setHonorUploadProgressV16422(100,'Upload selesai');
+      await new Promise(resolve=>setTimeout(resolve,220));
+      alert(response.message||'Dokumen berhasil diunggah.');
+    }catch(e){
+      stopHonorUploadPulseV16422();
+      alert(e?.message||String(e));
+    }finally{
+      stopHonorUploadPulseV16422();
+      hideLoading();
+      honorUploadProgressV16422=0;
+      if(btn){btn.dataset.busy='0';btn.disabled=false;btn.textContent='Upload File Terpilih';}
+    }
+  };
+
+  window.__SIMPROV_PATCH_VERSION_V16422__=PATCH_VERSION_V16422;
 })();
