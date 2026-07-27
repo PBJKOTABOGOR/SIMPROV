@@ -6138,8 +6138,8 @@ function renderPencatatanPengadaanV95(){
     paketAktifV95 = null;
   }
   document.getElementById('contentArea').innerHTML = paketListHtmlV95(all, {
-    judul:'Pencatatan Pengadaan – Belanja Langsung (≤ Rp500 juta)',
-    sub:'Daftar paket Belanja Langsung yang telah dibuat dari perencanaan.',
+    judul:'Pencatatan Pengadaan',
+    sub:'',
     aksiLabel:'Paket Pencatatan', butuhSetuju:true,
     info:(dashboard?.perencanaan || []).some(k => isProcurementV83(k) && isPipelineV94(k)) ? '<p class="small">Paket Pengadaan Langsung dan Tender tersedia pada menu Pengadaan Langsung.</p>' : ''
   });
@@ -6307,7 +6307,7 @@ function renderNonPengadaanV95(){
   }
   document.getElementById('contentArea').innerHTML = paketListHtmlV95(all, {
     judul:'Pencatatan Non Pengadaan',
-    sub:'Paket anggaran non pengadaan (honorarium, insentif, uang saku, dsb. sesuai Standar Biaya SK 040.2/2026). Dokumen yang diupload: Tanda Terima dan Bukti Potong Pajak. Klik paket untuk mengelola penerima honor dan dokumen.',
+    sub:'',
     aksiLabel:'Paket Pencatatan', butuhSetuju:true
   });
 }
@@ -8839,7 +8839,7 @@ renderDetailPengadaanLangsungV95 = function(k){return renderDetailPengadaanLangs
 renderPengadaanLangsungV95 = function(){
   const all=(dashboard?.perencanaan||[]).filter(k=>isProcurementV83(k)&&isPipelineV94(k)&&String(k.status_perencanaan||'').toUpperCase()==='DISETUJUI');
   if(paketAktifV95){const k=all.find(x=>String(x.id_kegiatan)===String(paketAktifV95));if(k)return renderDetailPengadaanLangsungV123(k);paketAktifV95=null;}
-  document.getElementById('contentArea').innerHTML=paketListHtmlV95(all,{judul:'Pengadaan Langsung',sub:'Paket yang telah disetujui diproses melalui tahapan dokumen, pemeriksaan, pembayaran, dan realisasi.',aksiLabel:'Buka Paket',butuhSetuju:true});
+  document.getElementById('contentArea').innerHTML=paketListHtmlV95(all,{judul:'Pengadaan Langsung',sub:'',aksiLabel:'Buka Paket',butuhSetuju:true});
 };
 
 /* HPS Pengadaan Langsung memakai modal cetak lokal yang sama, tetapi jalur
@@ -19936,26 +19936,28 @@ window.toggleSifatSbV1671=function(){
     }
   });
 
-  /* 3. Laporan cetak keseluruhan (Admin/verifikator) ikut membuang dua kartu. */
-  if(typeof downloadDashboardPDF==='function'){
-    const dasar=downloadDashboardPDF;
-    downloadDashboardPDF=function(){
-      const asli=window.openReportWindow;
-      if(typeof asli==='function'){
-        window.openReportWindow=function(judul,body){
-          try{
-            let b=String(body||'');
-            /* Buang kartu Total Perencanaan dan Sisa Pagu Perencanaan dari
-               blok ringkasan laporan, apa pun urutannya. */
-            b=b.replace(/<div[^>]*>\s*<span>\s*Total Perencanaan\s*<\/span>[\s\S]*?<\/div>/gi,'');
-            b=b.replace(/<div[^>]*>\s*<span>\s*Sisa Pagu(?: Perencanaan)?\s*<\/span>[\s\S]*?<\/div>/gi,'');
-            body=b;
-          }catch(e){}
-          return asli.call(this,judul,body);
-        };
-      }
-      try{ return dasar.apply(this,arguments); }
-      finally{ window.openReportWindow=asli; }
-    };
-  }
+})();
+
+
+/* SIMPROV v168.4 - Laporan cetak: buang kartu Total Perencanaan dan Sisa Pagu.
+   Laporan dibuat oleh beberapa generator berbeda (downloadDashboardPDF,
+   buildMonitoringReportBodyV55, dan lainnya) yang semuanya bermuara pada
+   openReportWindow. Menyaring di openReportWindow menjamin kedua kartu terbuang
+   apa pun jalur pemanggilnya, tanpa harus menambal setiap generator. */
+(function(){
+  if(typeof openReportWindow!=='function')return;
+  const dasar=openReportWindow;
+  openReportWindow=function(judul,body){
+    try{
+      let b=String(body||'');
+      /* Buang <div class="card">...Total Perencanaan...</div> dan Sisa Pagu.
+         Pencocokan dibatasi pada satu kartu terdekat agar tidak melahap
+         kartu di sebelahnya. */
+      b=b.replace(/<div class="card">\s*<span>\s*Total Perencanaan\s*<\/span>.*?<\/div>/gis,'');
+      b=b.replace(/<div class="card">\s*<span>\s*Sisa Pagu(?:\s+Perencanaan)?\s*<\/span>.*?<\/div>/gis,'');
+      body=b;
+    }catch(e){}
+    return dasar.call(this,judul,body);
+  };
+  window.openReportWindow=openReportWindow;
 })();
