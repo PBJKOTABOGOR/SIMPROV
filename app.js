@@ -19791,3 +19791,101 @@ window.toggleSifatSbV1671=function(){
     openReportWindow('Laporan Realisasi Anggaran - Pimpinan',body);
   };
 })();
+
+
+/* SIMPROV v168.2 - Ringkasan User Bidang diselaraskan dengan Pimpinan.
+   - Kartu ringkasan atas: buang Total Perencanaan dan Sisa Pagu, tambah
+     Persentase Realisasi. Kartu status paket (Total Paket, Disetujui,
+     Menunggu, Perlu Perbaikan) di menu Perencanaan tidak disentuh.
+   - Tabel Ringkasan Bidang pada Struktur Anggaran menampilkan Pagu,
+     Realisasi, Persentase.
+   - Laporan cetak untuk User Bidang diringkas menjadi pagu dan realisasi. */
+(function(){
+  function angkaV1682(v){ const n=Number(String(v==null?'':v).replace(/[^0-9.-]/g,'')); return isFinite(n)?n:0; }
+  function roleV1682(){ try{return String(currentUser?.role||'').toUpperCase();}catch(e){return '';} }
+  function isBidangMurniV1682(){ return roleV1682()==='BIDANG'; }
+  function pctV1682(real,pagu){ const p=angkaV1682(pagu); return p?Math.max(0,Math.min(100,angkaV1682(real)/p*100)):0; }
+
+  function rekapBidangV1682(){
+    const rows=Array.isArray(dashboard?.rekap)?dashboard.rekap:[];
+    return rows.find(x=>String(x.id_bidang||'')===String(currentUser?.id_bidang||''))||{};
+  }
+
+  /* Ringkasan atas: hanya baris kartu anggaran (Total Pagu ... Total Realisasi)
+     yang disesuaikan. Baris status paket dibiarkan. */
+  function sesuaikanKartuBidangV1682(){
+    if(!isBidangMurniV1682())return;
+    const wrap=document.getElementById('summaryCards'); if(!wrap)return;
+    const punyaPagu=[...wrap.querySelectorAll('.summary-card')].some(c=>{
+      const l=(c.querySelector('span')?.textContent||'').trim().toUpperCase();
+      return l==='TOTAL PAGU'||l==='PAGU BIDANG';
+    });
+    if(!punyaPagu)return;   /* ini baris status paket, bukan baris anggaran */
+
+    [...wrap.querySelectorAll('.summary-card')].forEach(card=>{
+      const l=(card.querySelector('span')?.textContent||'').trim().toUpperCase();
+      if(l==='TOTAL PERENCANAAN'||l.indexOf('SISA PAGU')===0)card.remove();
+    });
+    if(!wrap.querySelector('.summary-card-persen-bidang-v1682')){
+      const r=rekapBidangV1682();
+      const pct=pctV1682(r.total_realisasi,r.pagu);
+      const kartu=document.createElement('div');
+      kartu.className='summary-card summary-card-v159 summary-card-persen-bidang-v1682';
+      kartu.innerHTML=`<span>Persentase Realisasi</span><b>${pct.toFixed(1)}%</b>`;
+      wrap.appendChild(kartu);
+    }
+  }
+
+  if(typeof renderSummary==='function'){
+    const dasar=renderSummary;
+    renderSummary=function(){
+      const hasil=dasar.apply(this,arguments);
+      try{ sesuaikanKartuBidangV1682(); }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Tabel Ringkasan Bidang pada Struktur Anggaran. */
+  if(typeof renderStruktur==='function'){
+    const dasar=renderStruktur;
+    renderStruktur=function(){
+      const hasil=dasar.apply(this,arguments);
+      if(!isBidangMurniV1682())return hasil;
+      try{
+        const target=document.getElementById('contentArea');
+        const tabel=target&&target.querySelector('table');
+        if(!tabel)return hasil;
+        const r=rekapBidangV1682();
+        const pagu=angkaV1682(r.pagu), real=angkaV1682(r.total_realisasi), pct=pctV1682(real,pagu);
+        const nama=esc(r.nama_bidang||currentUser?.nama||'-');
+        tabel.innerHTML=
+          `<thead><tr><th>Bidang</th><th>Pagu</th><th>Total Realisasi</th><th>Persentase Realisasi</th><th>Akses</th><th>Progress</th></tr></thead>`+
+          `<tbody><tr><td>${nama}</td><td>${rupiah(pagu)}</td><td>${rupiah(real)}</td>`+
+          `<td>${pct.toFixed(1)}%</td><td>${badge(r.status_akses||'BUKA')}</td>`+
+          `<td>${badge(r.status_progress||'BELUM INPUT')}</td></tr></tbody>`;
+      }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Laporan cetak untuk User Bidang. */
+  if(typeof downloadDashboardPDF==='function'){
+    const dasar=downloadDashboardPDF;
+    downloadDashboardPDF=function(){
+      if(!isBidangMurniV1682())return dasar.apply(this,arguments);
+      try{
+        const r=rekapBidangV1682();
+        const pagu=angkaV1682(r.pagu), real=angkaV1682(r.total_realisasi), pct=pctV1682(real,pagu);
+        const nama=plainText(r.nama_bidang||currentUser?.nama||'-');
+        const body=`<div class="summary">`+
+          `<div class="card"><span>Total Pagu</span><b>${rupiah(pagu)}</b></div>`+
+          `<div class="card"><span>Total Realisasi</span><b>${rupiah(real)}</b></div>`+
+          `<div class="card"><span>Persentase Realisasi</span><b>${pct.toFixed(1)}%</b></div></div>`+
+          `<h3>Realisasi Anggaran Bidang</h3>`+
+          `<table><thead><tr><th>Bidang</th><th>Pagu</th><th>Total Realisasi</th><th>Persentase</th></tr></thead>`+
+          `<tbody><tr><td>${nama}</td><td>${rupiah(pagu)}</td><td>${rupiah(real)}</td><td>${pct.toFixed(1)}%</td></tr></tbody></table>`;
+        openReportWindow('Laporan Realisasi Anggaran - '+nama,body);
+      }catch(e){ return dasar.apply(this,arguments); }
+    };
+  }
+})();
