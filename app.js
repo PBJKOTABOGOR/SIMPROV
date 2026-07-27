@@ -574,7 +574,7 @@ function renderPerencanaan(){
     if(aksesPerencanaanTerbuka()){
       html += `<section class="panel fade-up premium-panel collapsible-panel"><div class="panel-head"><div><h3>Input Perencanaan</h3><p class="panel-sub">Input rencana kegiatan/kebutuhan. Setelah disimpan, status langsung DIAJUKAN ke Verifikator.</p></div>${collapseButton('perencanaanInput')}</div><div class="collapse-body ${collapseState.perencanaanInput?'hidden':''}"><div class="form-grid"><div class="field"><label>Nama Kegiatan</label><input id="namaKegiatan" placeholder="Contoh: Rapat Koordinasi"></div><div class="field"><label>Keterangan</label><input id="keterangan" placeholder="Opsional"></div><div class="field"><label>Volume</label><input id="volume" inputmode="numeric" placeholder="Contoh: 2" oninput="onAngkaInput(this)"></div><div class="field"><label>Satuan</label><input id="satuan" placeholder="Orang / Paket / Buah"></div><div class="field"><label>Harga Satuan</label><input id="harga" inputmode="numeric" placeholder="Contoh: 500.000" oninput="onAngkaInput(this)"></div><div class="field"><label>Total Otomatis</label><input id="totalPreview" class="readonly-total" value="Rp0" readonly></div><div class="field"><label>Metode</label><input id="metodePemilihan" class="readonly-total" placeholder="Otomatis sesuai pagu" readonly></div><div class="field"><label>Waktu Pemilihan</label><input id="waktuPemilihan" type="date" onchange="onWaktuPemilihanInput(false)"></div></div><div id="metodePreview" class="metode-preview"></div><button onclick="savePerencanaan()">Simpan & Ajukan</button><div id="saveMsg" class="msg"></div></div></section>`;
     } else {
-      html += `<section class="panel fade-up locked-panel"><h3>Perencanaan Ditutup</h3><p class="panel-sub">🔒 Akses perencanaan bidang sedang ditutup oleh Verifikator. Kamu masih bisa membuka menu Pencairan untuk upload/revisi dokumen.</p></section>`;
+      html += `<section class="panel fade-up locked-panel"><h3>Perencanaan Ditutup</h3><p class="panel-sub">Akses perencanaan bidang sedang ditutup oleh Verifikator. Kamu masih bisa membuka menu Pencairan untuk upload/revisi dokumen.</p></section>`;
     }
   }
   const rows = pageData.map(k=>renderPerencanaanRow(k)).join("");
@@ -693,7 +693,7 @@ function openReportWindow(title, bodyHtml){
     .report-page table{font-size:8.2px}
     @media print{.btn-print{display:none} a{color:#005ea8}.report-page{width:auto}}
   </style></head><body><button class="btn-print" onclick="window.print()">Cetak / Simpan PDF</button><div class="report-page">
-  <div class="kop"><img src="logo-siporbo.png"><div><h1>SIMPROV</h1><div class="instansi">Sistem Informasi Monitoring Persiapan PORPROV</div><div class="small">Laporan Monitoring Persiapan PORPROV</div></div><div class="meta"><b>Tanggal Cetak</b><br>${plainText(now)}<br><b>Dicetak oleh</b><br>${plainText(getRoleReportTitle())}</div></div>
+  <div class="kop"><img src="logo-siporbo.png"><div><h1>SIMPROV</h1><div class="instansi">Sistem Informasi PORPROV Kota Bogor</div><div class="small">Laporan Monitoring PORPROV</div></div><div class="meta"><b>Tanggal Cetak</b><br>${plainText(now)}<br><b>Dicetak oleh</b><br>${plainText(getRoleReportTitle())}</div></div>
   <div class="title-block"><h2>${plainText(title)}</h2><div class="sub">Memuat rekap pagu, perencanaan, riwayat perubahan, dokumen pencairan, link dokumen, dan status verifikasi.</div></div>
   ${bodyHtml}
   
@@ -1812,7 +1812,7 @@ function renderStruktur(){
           ${editing?`<select id="akses_${esc(r.id_bidang)}"><option value="BUKA" ${r.status_akses==='BUKA'?'selected':''}>BUKA</option><option value="TUTUP" ${r.status_akses==='TUTUP'?'selected':''}>TUTUP</option></select>`:`<div class="readonly-display">${esc(r.status_akses || '-')}</div>`}
         </div>
         <div class="admin-budget-status">${badge(r.status_progress)}</div>
-        <div class="admin-budget-actions">${editing?`<button onclick="updateBidang('${esc(r.id_bidang)}')">Simpan</button><button class="btn-soft" onclick="setAdminEditRow('${esc(r.id_bidang)}', false)">Batal</button>`:`<button class="btn-mini" onclick="setAdminEditRow('${esc(r.id_bidang)}', true)">Edit</button>`}</div>
+        <div class="admin-budget-actions">${editing?`<button onclick="updateBidang('${esc(r.id_bidang)}')">Simpan</button><button class="btn-soft" onclick="setAdminEditRow('${esc(r.id_bidang)}', false)">Batal</button>`:`<button class="btn-mini" onclick="setAdminEditRow('${esc(r.id_bidang)}', true)">Edit</button> <button class="btn-mini btn-soft" onclick="hapusBidangV165('${esc(r.id_bidang)}','${esc(r.nama_bidang||r.id_bidang)}')">Hapus</button>`}</div>
       </div>`;
     }).join("");
     document.getElementById("contentArea").innerHTML = `<section class="panel fade-up premium-panel struktur-admin-panel">
@@ -1862,6 +1862,7 @@ function openTambahBidangModal(){
           <div class="field"><label>Nama Bidang</label><input id="newNamaBidang" placeholder="Contoh: Kesekretariatan"></div>
           <div class="field"><label>Pagu</label><input id="newPaguBidang" inputmode="numeric" placeholder="Contoh: 10.000.000" oninput="onPaguAdminInput(this)"></div>
           <div class="field"><label>Akses Input</label><select id="newAksesBidang"><option value="BUKA">BUKA</option><option value="TUTUP">TUTUP</option></select></div>
+          <div class="field full"><label>Induk Bidang</label><select id="newParentBidang">${parentOptionsV165("")}</select><small class="hint-v165">Kosongkan bila bidang ini berdiri sendiri. Bidang cabang tidak dapat memiliki cabang lagi.</small></div>
           <div class="field full"><label>Keterangan</label><input id="newKetBidang" placeholder="Opsional"></div>
         </div>
         <div class="modal-actions-v49">
@@ -1883,7 +1884,8 @@ async function submitTambahBidang(){
     nama_bidang: document.getElementById("newNamaBidang").value,
     pagu: toNumber(document.getElementById("newPaguBidang").value),
     status_akses: document.getElementById("newAksesBidang").value,
-    keterangan: document.getElementById("newKetBidang").value
+    keterangan: document.getElementById("newKetBidang").value,
+    id_parent: (document.getElementById("newParentBidang")||{}).value || ""
   };
   if(!data.id_bidang || !data.nama_bidang){ alert("ID bidang dan nama bidang wajib diisi."); return; }
   showLoading("Menyimpan bidang...");
@@ -4374,12 +4376,13 @@ function renderManajemenAkunV65(){
   const rows=users.map(u=>{
     const ids=String(u.bidang_akses||'').split(',').map(x=>x.trim()).filter(Boolean);
     const names=ids.map(id=>bidangName(id)).join(', ') || '-';
-    return `<div class="admin-budget-card account-card-v65"><div class="admin-budget-info"><b>${esc(u.nama||'-')}</b><small>${esc(u.id_user||'')} • ${esc(u.username||'')}</small></div><div><span class="badge badge-blue">VERIFIKATOR</span></div><div class="account-scope-text"><small>Bidang Penugasan</small><br>${esc(names)}</div><div>${badge(u.status||'AKTIF')}</div><div><button class="btn-mini" onclick="openEditVerifierV65('${esc(u.id_user)}')">Edit</button></div></div>`;
+    return `<div class="admin-budget-card account-card-v65"><div class="admin-budget-info"><b>${esc(u.nama||'-')}</b><small>${esc(u.id_user||'')} • ${esc(u.username||'')}</small></div><div><span class="badge badge-blue">VERIFIKATOR</span></div><div class="account-scope-text"><small>Bidang Penugasan</small><br>${esc(names)}</div><div>${badge(u.status||'AKTIF')}</div><div><button class="btn-mini" onclick="openEditVerifierV65('${esc(u.id_user)}')">Edit</button> <button class="btn-mini btn-soft" onclick="hapusAkunV165('${esc(u.id_user)}','${esc(u.nama||u.id_user)}')">Hapus</button></div></div>`;
   }).join('');
   const i=identityV77();
   document.getElementById('contentArea').innerHTML=`
   <section class="panel fade-up premium-panel"><div class="panel-title-row"><div><h3>Identitas Penanggung Jawab</h3><p class="panel-sub">Nama ini tampil pada header dan digunakan sebagai identitas resmi aplikasi.</p></div></div><div class="form-grid"><div class="field"><label>Nama Ketua Umum</label><input id="ketuaUmumV77" value="${esc(i.ketua_umum||'')}" placeholder="Nama lengkap Ketua Umum"></div><div class="field"><label>Nama Verifikator</label><input id="verifikatorUtamaV77" value="${esc(i.verifikator||users[0]?.nama||'')}" placeholder="Nama lengkap Verifikator"></div></div><button onclick="saveIdentityV77()">Simpan Identitas</button><div id="identityMsgV77" class="msg"></div></section>
-  <section class="panel fade-up premium-panel"><div class="panel-title-row"><div><h3>Manajemen Akses dan Akun Verifikator</h3><p class="panel-sub">Satu jenis Verifikator menangani perencanaan, dokumen, dan finalisasi sesuai bidang penugasannya.</p></div><button class="btn-refresh" onclick="openCreateVerifierV65()">+ Buat Akun</button></div><div class="admin-budget-list">${rows||'<p class="muted">Belum ada akun verifikator.</p>'}</div></section><div id="verifierModalV65" class="modal hidden"></div>`;
+  <section class="panel fade-up premium-panel"><div class="panel-title-row"><div><h3>Manajemen Akses dan Akun Verifikator</h3><p class="panel-sub">Satu jenis Verifikator menangani perencanaan, dokumen, dan finalisasi sesuai bidang penugasannya.</p></div><div><button class="btn-mini btn-soft" onclick="migrasiPasswordV165()" title="Ubah password lama yang masih tersimpan sebagai teks biasa menjadi SHA256">Amankan Password Lama</button></div><button class="btn-refresh" onclick="openCreateVerifierV65()">+ Buat Akun</button></div><div class="admin-budget-list">${rows||'<p class="muted">Belum ada akun verifikator.</p>'}</div></section><div id="verifierModalV65" class="modal hidden"></div>
+  `;
 }
 function verifierFormModalV65(u){
   const editing=!!u; const selected=String(u?.bidang_akses||'').split(',').map(x=>x.trim()).filter(Boolean); const modal=document.getElementById('verifierModalV65');
@@ -9172,19 +9175,24 @@ function verifierFormModalV65(u){
   if(!modal)return;
   const role=actualRoleV133(u||{role:'VERIFIKATOR_PBJ'});
   modal.className='modal-backdrop access-modal-v133';
-  modal.innerHTML=`<div class="modal-card modal-wide access-card-v133 fade-up"><div class="modal-head"><div><h3>${editing?'Edit':'Buat'} Akun</h3><p>Hak akses menu mengikuti role yang dipilih.</p></div><button class="btn-soft" onclick="closeVerifierModalV65()">Tutup</button></div><div class="form-grid"><div class="field"><label>Nama Lengkap</label><input id="akunNama" value="${esc(u?.nama||'')}" placeholder="Nama pemilik akun"></div><div class="field"><label>Role</label><select id="akunRole" onchange="onManagedRoleChangeV133()"><option value="VERIFIKATOR_PBJ" ${role==='VERIFIKATOR_PBJ'?'selected':''}>Verifikator PBJ</option><option value="VERIFIKATOR_KEUANGAN" ${role==='VERIFIKATOR_KEUANGAN'?'selected':''}>Verifikator Keuangan</option><option value="BENDAHARA" ${role==='BENDAHARA'?'selected':''}>Bendahara</option><option value="PIMPINAN" ${role==='PIMPINAN'?'selected':''}>Pimpinan</option></select></div><div class="field"><label>Username</label><input id="akunUsername" value="${esc(u?.username||'')}" placeholder="username"></div><div class="field"><label>Password ${editing?'(kosongkan jika tidak diubah)':''}</label><input id="akunPassword" type="password" placeholder="Password akun"></div>${editing?`<div class="field"><label>Status</label><select id="akunStatus"><option value="AKTIF" ${String(u?.status).toUpperCase()==='AKTIF'?'selected':''}>AKTIF</option><option value="NONAKTIF" ${String(u?.status).toUpperCase()==='NONAKTIF'?'selected':''}>NONAKTIF</option></select></div>`:''}</div><div id="akunBidangWrapV133" class="field"><label>Pilih Bidang Penugasan</label><p class="field-help-v133">Wajib untuk Verifikator PBJ dan Verifikator Keuangan.</p><div class="account-scope-grid">${bidangChecksV65(selected)}</div></div><div class="modal-actions"><button class="btn-soft" onclick="closeVerifierModalV65()">Batal</button><button onclick="saveVerifierV65('${esc(u?.id_user||'')}')">Simpan Akun</button></div></div>`;
+  modal.innerHTML=`<div class="modal-card modal-wide access-card-v133 fade-up"><div class="modal-head"><div><h3>${editing?'Edit':'Buat'} Akun</h3><p>Hak akses menu mengikuti role yang dipilih.</p></div><button class="btn-soft" onclick="closeVerifierModalV65()">Tutup</button></div><div class="form-grid"><div class="field"><label>Nama Lengkap</label><input id="akunNama" value="${esc(u?.nama||'')}" placeholder="Nama pemilik akun"></div><div class="field"><label>Role</label><select id="akunRole" onchange="onManagedRoleChangeV133()"><option value="VERIFIKATOR_PBJ" ${role==='VERIFIKATOR_PBJ'?'selected':''}>Verifikator PBJ</option><option value="VERIFIKATOR_KEUANGAN" ${role==='VERIFIKATOR_KEUANGAN'?'selected':''}>Verifikator Keuangan</option><option value="BENDAHARA" ${role==='BENDAHARA'?'selected':''}>Bendahara</option><option value="PIMPINAN" ${role==='PIMPINAN'?'selected':''}>Pimpinan</option><option value="BIDANG" ${role==='BIDANG'?'selected':''}>User Bidang</option></select></div><div class="field" id="akunBidangTunggalWrapV165" style="display:none"><label>Bidang Akun</label><select id="akunBidangTunggalV165">${bidangTunggalOptionsV165(u?.id_bidang||'')}</select><small class="hint-v165">Satu akun untuk satu bidang. Cabang olahraga dipilih di sini.</small></div><div class="field"><label>Username</label><input id="akunUsername" value="${esc(u?.username||'')}" placeholder="username"></div><div class="field"><label>Password ${editing?'(kosongkan jika tidak diubah)':''}</label><input id="akunPassword" type="password" placeholder="Password akun"></div>${editing?`<div class="field"><label>Status</label><select id="akunStatus"><option value="AKTIF" ${String(u?.status).toUpperCase()==='AKTIF'?'selected':''}>AKTIF</option><option value="NONAKTIF" ${String(u?.status).toUpperCase()==='NONAKTIF'?'selected':''}>NONAKTIF</option></select></div>`:''}</div><div id="akunBidangWrapV133" class="field"><label>Pilih Bidang Penugasan</label><p class="field-help-v133">Wajib untuk Verifikator PBJ dan Verifikator Keuangan.</p><div class="account-scope-grid">${bidangChecksV65(selected)}</div></div><div class="modal-actions"><button class="btn-soft" onclick="closeVerifierModalV65()">Batal</button><button onclick="saveVerifierV65('${esc(u?.id_user||'')}')">Simpan Akun</button></div></div>`;
   onManagedRoleChangeV133();
 }
 function onManagedRoleChangeV133(){
   const role=document.getElementById('akunRole')?.value,wrap=document.getElementById('akunBidangWrapV133');
   if(wrap)wrap.classList.toggle('optional-scope-v133',!managedRoleNeedsBidangV133(role));
+  const bidangRole=String(role||'').toUpperCase()==='BIDANG';
+  const tunggal=document.getElementById('akunBidangTunggalWrapV165');
+  if(tunggal)tunggal.style.display=bidangRole?'':'none';
+  if(wrap)wrap.style.display=bidangRole?'none':'';
 }
 function closeVerifierModalV65(){const m=document.getElementById('verifierModalV65');if(m){m.className='modal-backdrop hidden';m.innerHTML='';}}
 async function saveVerifierV65(id){
   const role=document.getElementById('akunRole')?.value||'',bidang_akses=[...document.querySelectorAll('input[name="akunBidang"]:checked')].map(x=>x.value);
-  const data={id_user:id,nama:document.getElementById('akunNama')?.value.trim(),role,username:document.getElementById('akunUsername')?.value.trim(),password:document.getElementById('akunPassword')?.value||'',bidang_akses,status:document.getElementById('akunStatus')?.value||'AKTIF'};
+  const data={id_user:id,nama:document.getElementById('akunNama')?.value.trim(),role,username:document.getElementById('akunUsername')?.value.trim(),password:document.getElementById('akunPassword')?.value||'',bidang_akses,status:document.getElementById('akunStatus')?.value||'AKTIF',id_bidang:(document.getElementById('akunBidangTunggalV165')||{}).value||''};
   if(!data.nama||!data.username||(!id&&!data.password)){alert('Nama, username, dan password wajib diisi.');return;}
-  if(managedRoleNeedsBidangV133(role)&&!bidang_akses.length){alert('Pilih minimal satu bidang penugasan.');return;}
+  if(String(role||'').toUpperCase()==='BIDANG'){ if(!data.id_bidang){alert('Pilih bidang untuk akun User Bidang.');return;} }
+  else if(managedRoleNeedsBidangV133(role)&&!bidang_akses.length){alert('Pilih minimal satu bidang penugasan.');return;}
   const ok=await confirmActionV133({title:id?'Simpan Perubahan Akun':'Buat Akun Baru',message:`Pastikan nama, role ${roleLabelV133(role)}, username, dan bidang penugasan sudah benar.`,confirmText:id?'Ya, Simpan':'Ya, Buat Akun'});if(!ok)return;
   showLoading('Menyimpan akun...');
   try{const r=await apiPost({action:id?'updateVerifierAccount':'saveVerifierAccount',user:currentUser,data});if(!r.success)throw new Error(r.message||'Gagal menyimpan akun');closeVerifierModalV65();await loadDashboard(false);renderAll();alert(r.message);}catch(e){alert(e.message||String(e));}finally{hideLoading();}
@@ -9279,7 +9287,7 @@ function printNotaDinasV133(id){
   const s=suratWorkspaceV133.surat.find(x=>String(x.id_surat)===String(id));if(!s)return;
   const w=window.open('','_blank');if(!w)return alert('Popup diblokir browser. Izinkan popup untuk mencetak Nota Dinas.');
   const approval=s.persetujuan_digital?`<div class="sign"><b>Pimpinan</b><div class="space"></div><u>${esc(s.disetujui_oleh||'-')}</u><small>${esc(s.persetujuan_digital)}</small></div>`:'';
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Nota Dinas ${esc(s.nomor_surat||'')}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}.head{text-align:center;border-bottom:3px solid #173f70;padding-bottom:14px}.head h1{margin:0;color:#173f70}.title{text-align:center;margin:24px 0}.meta{width:100%;border-collapse:collapse}.meta td{padding:5px;vertical-align:top}.body{margin-top:24px;line-height:1.7;white-space:pre-wrap}.sign{margin-top:65px;margin-left:auto;width:280px;text-align:center}.space{height:70px}.sign small{display:block;color:#246293;margin-top:8px}.footer{position:fixed;bottom:0;font-size:9pt;color:#667}</style></head><body><div class="head"><h1>SIMPROV</h1><b>SISTEM INFORMASI MONITORING PERSIAPAN PORPROV KOTA BOGOR</b></div><div class="title"><h2>NOTA DINAS</h2><div>Nomor: ${esc(s.nomor_surat||'-')}</div></div><table class="meta"><tr><td width="120">Kepada</td><td>: ${esc(s.tujuan_role||'Pimpinan')}</td></tr><tr><td>Dari</td><td>: ${esc(s.asal_nama||'-')}</td></tr><tr><td>Tanggal</td><td>: ${esc(formatDate(s.tanggal_surat)||'-')}</td></tr><tr><td>Sifat</td><td>: ${esc(s.sifat||'BIASA')}</td></tr><tr><td>Perihal</td><td>: ${esc(s.perihal||'-')}</td></tr></table><div class="body">${esc(s.isi_ringkas||'')}</div>${approval}<div class="footer">Dokumen dibuat dan tercatat melalui SIMPROV • ${esc(s.id_surat)}</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Nota Dinas ${esc(s.nomor_surat||'')}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}.head{text-align:center;border-bottom:3px solid #173f70;padding-bottom:14px}.head h1{margin:0;color:#173f70}.title{text-align:center;margin:24px 0}.meta{width:100%;border-collapse:collapse}.meta td{padding:5px;vertical-align:top}.body{margin-top:24px;line-height:1.7;white-space:pre-wrap}.sign{margin-top:65px;margin-left:auto;width:280px;text-align:center}.space{height:70px}.sign small{display:block;color:#246293;margin-top:8px}.footer{position:fixed;bottom:0;font-size:9pt;color:#667}</style></head><body><div class="head"><h1>SIMPROV</h1><b>SISTEM INFORMASI PORPROV KOTA BOGOR</b></div><div class="title"><h2>NOTA DINAS</h2><div>Nomor: ${esc(s.nomor_surat||'-')}</div></div><table class="meta"><tr><td width="120">Kepada</td><td>: ${esc(s.tujuan_role||'Pimpinan')}</td></tr><tr><td>Dari</td><td>: ${esc(s.asal_nama||'-')}</td></tr><tr><td>Tanggal</td><td>: ${esc(formatDate(s.tanggal_surat)||'-')}</td></tr><tr><td>Sifat</td><td>: ${esc(s.sifat||'BIASA')}</td></tr><tr><td>Perihal</td><td>: ${esc(s.perihal||'-')}</td></tr></table><div class="body">${esc(s.isi_ringkas||'')}</div>${approval}<div class="footer">Dokumen dibuat dan tercatat melalui SIMPROV • ${esc(s.id_surat)}</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close();
 }
 
 const __renderContentV133Base=renderContent;
@@ -9961,15 +9969,20 @@ function formatDate(v){
     renderManageBaseV136();
     if(!isSuperAdminV65())return;
     const area=document.getElementById('contentArea');if(!area)return;
-    const cards=(dashboard?.bidangs||[]).map(b=>`<label class="pimpinan-bidang-card-v136"><span><b>${esc(b.nama_bidang||'-')}</b><small>${esc(b.id_bidang||'')}</small></span><input class="pimpinan-bidang-input-v136" data-id="${esc(b.id_bidang)}" value="${esc(b.nama_pimpinan_bidang||'')}" placeholder="Nama pimpinan bidang"></label>`).join('');
-    const panel=`<section class="panel fade-up premium-panel pimpinan-bidang-panel-v136"><div class="panel-title-row"><div><h3>Nama Pimpinan Setiap Bidang</h3><p class="panel-sub">Nama ini digunakan pada tanda tangan elektronik Nota Dinas dan dokumen yang dibuat oleh masing-masing bidang.</p></div><button class="btn-refresh" onclick="savePimpinanBidangV136()">Simpan Nama Pimpinan</button></div><div class="pimpinan-bidang-grid-v136">${cards||'<p class="empty">Belum ada data bidang.</p>'}</div></section>`;
+    const cards=(dashboard?.bidangs||[]).map(b=>{
+      const cabang=!!String(b.id_parent||'').trim();
+      const sebutan=cabang?'Panpel':'Pimpinan Bidang';
+      const induk=cabang?`<em class="panpel-induk-v1654">Panpel &middot; induk ${esc(String(b.id_parent).trim())}</em>`:'';
+      return `<label class="pimpinan-bidang-card-v136"><span><b>${esc(b.nama_bidang||'-')}</b><small>${esc(b.id_bidang||'')}</small>${induk}</span><input class="pimpinan-bidang-input-v136" data-id="${esc(b.id_bidang)}" value="${esc(b.nama_pimpinan_bidang||'')}" placeholder="Nama ${sebutan.toLowerCase()}"></label>`;
+    }).join('');
+    const panel=`<section class="panel fade-up premium-panel pimpinan-bidang-panel-v136"><div class="panel-title-row"><div><h3>Penanggung Jawab Setiap Bidang</h3><p class="panel-sub">Pimpinan Bidang untuk bidang induk, Panitia Pelaksana (Panpel) untuk bidang cabang. Nama ini dipakai pada tanda tangan elektronik Nota Dinas dan dokumen yang dibuat bidang bersangkutan.</p></div><button class="btn-refresh" onclick="savePimpinanBidangV136()">Simpan Nama Pimpinan</button></div><div class="pimpinan-bidang-grid-v136">${cards||'<p class="empty">Belum ada data bidang.</p>'}</div></section>`;
     area.insertAdjacentHTML('afterbegin',panel);
   };
   window.savePimpinanBidangV136=async function(){
     const inputs=[...document.querySelectorAll('.pimpinan-bidang-input-v136')],empty=inputs.filter(x=>!x.value.trim());
     if(empty.length){alert(`Nama pimpinan belum diisi untuk ${empty.length} bidang. Lengkapi seluruh nama agar tanda tangan surat tidak kosong.`);empty[0].focus();return;}
     const items=inputs.map(x=>({id_bidang:x.dataset.id,nama_pimpinan:x.value.trim()}));
-    const ok=await confirmActionV133({title:'Simpan Nama Pimpinan Bidang',message:`Nama pimpinan untuk ${items.length} bidang akan digunakan pada tanda tangan elektronik surat.`,confirmText:'Ya, Simpan'});if(!ok)return;
+    const ok=await confirmActionV133({title:'Simpan Penanggung Jawab Bidang',message:`Nama pimpinan untuk ${items.length} bidang akan digunakan pada tanda tangan elektronik surat.`,confirmText:'Ya, Simpan'});if(!ok)return;
     showLoading('Menyimpan nama pimpinan bidang...');
     try{const r=await apiPost({action:'savePimpinanBidangV136',user:currentUser,data:{items}});if(!r.success)throw new Error(r.message||'Gagal menyimpan nama pimpinan bidang');await loadDashboard(false);renderAll();sessionStorage.removeItem(suratCacheKeyV133());alert(r.message);}catch(e){alert(e.message||String(e));}finally{hideLoading();}
   };
@@ -10344,7 +10357,7 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
   };
 
   function simprovLogoUrlV139(){try{return new URL('logo-siporbo.png',window.location.href).href;}catch(e){return 'logo-siporbo.png';}}
-  function simprovPrintHeaderV139(){return `<header class="simprov-print-head-v139"><img src="${esc(simprovLogoUrlV139())}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi Monitoring Persiapan PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>`;}
+  function simprovPrintHeaderV139(){return `<header class="simprov-print-head-v139"><img src="${esc(simprovLogoUrlV139())}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>`;}
 
   paymentPrintShellV138=function(title,body){return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4;margin:14mm 18mm 17mm}*{box-sizing:border-box}body{font-family:'Times New Roman',serif;color:#000;font-size:11pt;line-height:1.35;margin:0}.toolbar{position:sticky;top:0;z-index:9;background:#edf7ff;padding:10px;text-align:right}.toolbar button{padding:8px 13px;margin-left:6px;border:1px solid #9bbad0;border-radius:7px;background:white;font-weight:bold}.doc{max-width:180mm;margin:auto}.simprov-print-head-v139{display:flex;align-items:center;gap:13px;border-bottom:3px solid #174a79;padding:0 0 9px;margin-bottom:18px;color:#123e67}.simprov-print-head-v139 img{width:45px;height:45px;object-fit:contain}.simprov-print-head-v139 div{display:flex;flex-direction:column}.simprov-print-head-v139 b{font-family:Arial,sans-serif;font-size:18pt;line-height:1}.simprov-print-head-v139 span{font-family:Arial,sans-serif;font-size:9.5pt;font-weight:bold;margin-top:3px}.simprov-print-head-v139 small{font-family:Arial,sans-serif;font-size:7.5pt;margin-top:2px}.doc-title{text-align:center;text-decoration:underline;font-size:13pt;font-weight:bold;margin:0 0 20px}.kop{display:none}.meta{width:100%;border-collapse:collapse;margin-bottom:15px}.meta td{padding:1px 3px;vertical-align:top}.meta td:first-child{width:115px}.meta td:nth-child(2){width:12px}.body{text-align:justify}.body p{margin:0 0 8px}.simple-table,.check-table,.sp2-table{width:100%;border-collapse:collapse;margin:10px 0}.simple-table th,.simple-table td,.check-table th,.check-table td,.sp2-table th,.sp2-table td{border:1px solid #000;padding:5px;vertical-align:top}.simple-table th,.check-table th{text-align:center}.sp2-table th{background:#1f416d;color:#fff;text-align:center}.sign-right{width:310px;margin:35px 0 0 auto;text-align:center}.sign-two{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:35px;text-align:center}.sign-space{height:58px}.tte{font-size:9pt;color:#1d5f89}.tte-box-v139{display:inline-block;border:1px dashed #1e6e9d;border-radius:8px;padding:5px 9px;color:#155f8c;font-family:Arial,sans-serif;font-size:8.5pt;font-weight:bold;margin:4px 0}.tte-time-v139{display:block;font-size:7.5pt;font-weight:normal;margin-top:2px}.tte-pending-v139{font-size:8pt;color:#777;margin:4px 0}.page-break{page-break-before:always}.doc-links a{color:#000;text-decoration:underline}.small{font-size:9pt}.center{text-align:center}.sp2-head{text-align:center}.sp2-total{font-weight:bold;background:#dff9f5}.nowrap{white-space:nowrap}@media print{.toolbar{display:none}.doc{max-width:none}}</style></head><body><div class="toolbar"><button onclick="window.close()">Tutup</button><button onclick="window.print()">Cetak / Simpan PDF</button></div><main class="doc">${simprovPrintHeaderV139()}${body}</main></body></html>`;};
 
@@ -10497,7 +10510,7 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
     const signed=!!(s.pengirim_ttd_digital||s.tanggal_diajukan||String(s.status_surat||'').toUpperCase()!=='DRAFT');
     const approval=s.persetujuan_digital?`<div class="sign-box"><b>Mengetahui / Menyetujui</b><div class="sign-space"></div><div class="tte-box-v140">TTE SIMPROV</div><br><b>${esc(s.disetujui_oleh||'Pimpinan')}</b><small>${esc(s.persetujuan_digital)}</small></div>`:'';
     const attachment=s.url_file?`<div class="attachment-v140"><b>Lampiran:</b> <a href="${esc(s.url_file)}" target="_blank" rel="noopener">Buka Dokumen Asli — ${esc(s.nama_file||'Lampiran')}</a></div>`:'';
-    w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Nota Dinas ${esc(s.nomor_surat||'')}</title><style>@page{size:A4;margin:14mm 18mm 17mm}*{box-sizing:border-box}body{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.45;color:#000;margin:0}.toolbar{position:sticky;top:0;z-index:5;background:#eef7ff;padding:10px;text-align:right}.toolbar button{margin-left:6px;padding:8px 12px;border:1px solid #bdd3e2;border-radius:8px;background:white;font-weight:bold}.sheet{max-width:180mm;margin:auto}.print-head{display:flex;align-items:center;gap:13px;border-bottom:3px solid #174a79;padding:0 0 9px;margin-bottom:18px;color:#123e67}.print-head img{width:45px;height:45px;object-fit:contain}.print-head div{display:flex;flex-direction:column}.print-head b{font-family:Arial,sans-serif;font-size:18pt;line-height:1}.print-head span{font-family:Arial,sans-serif;font-size:9.5pt;font-weight:bold;margin-top:3px}.print-head small{font-family:Arial,sans-serif;font-size:7.5pt;margin-top:2px}.title{text-align:center;text-decoration:underline;font-weight:bold;font-size:14pt;margin:0 0 20px}.meta{width:100%;border-collapse:collapse;margin:16px 0}.meta td{vertical-align:top;padding:2px}.meta td:first-child{width:110px}.meta td:nth-child(2){width:12px}.isi{line-height:1.5}.isi p{margin:0 0 9px}.isi ol,.isi ul{margin:0 0 9px 25px}.ttd-row{display:grid;grid-template-columns:${approval?'1fr 1fr':'1fr'};gap:50px;margin-top:35px}.sign-box{text-align:center;${approval?'':'max-width:310px;margin-left:auto'}}.sign-space{height:58px}.tte-box-v140{display:inline-block;border:1px dashed #1e6e9d;border-radius:8px;padding:5px 9px;color:#155f8c;font-family:Arial,sans-serif;font-size:8.5pt;font-weight:bold;margin:4px 0}.sign-box small{display:block;color:#386883;font-size:8pt;margin-top:4px}.attachment-v140{margin-top:28px;padding:11px 12px;border:1px solid #bbb;border-radius:8px;page-break-inside:avoid}.footer{margin-top:22px;color:#607080;font-size:8.5pt}@media print{.toolbar{display:none}.sheet{max-width:none}}</style></head><body><div class="toolbar"><button onclick="window.close()">Tutup</button><button onclick="window.print()">Cetak / Simpan PDF</button></div><main class="sheet"><header class="print-head"><img src="${esc(logoUrlV140())}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi Monitoring Persiapan PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header><div class="title">NOTA DINAS</div><table class="meta"><tr><td>Kepada Yth</td><td>:</td><td>${esc(s.tujuan_asli_nama||'Pimpinan')}</td></tr><tr><td>Dari</td><td>:</td><td>${esc(s.asal_nama||'-')}${s.asal_bidang?` (${esc(bidangName(s.asal_bidang)||s.asal_bidang)})`:''}</td></tr><tr><td>Nomor</td><td>:</td><td>${esc(s.nomor_surat||'-')}</td></tr><tr><td>Tanggal</td><td>:</td><td>${esc(formatDate(s.tanggal_surat)||'-')}</td></tr><tr><td>Sifat</td><td>:</td><td>${esc(s.sifat||'PENTING')}</td></tr><tr><td>Perihal</td><td>:</td><td>${esc(s.perihal||'-')}</td></tr></table><div class="isi">${body}</div><div class="ttd-row">${approval}<div class="sign-box"><b>Pengirim</b><div class="sign-space"></div>${signed?'<div class="tte-box-v140">TTE SIMPROV</div><br>':''}<b>${esc(senderName)}</b><small>${esc(s.pengirim_ttd_digital||'Ditandatangani secara elektronik melalui SIMPROV')}</small></div></div>${attachment}<div class="footer">Dokumen dibuat dan dicatat melalui SIMPROV • ID Surat: ${esc(s.id_surat||'-')}</div></main></body></html>`);w.document.close();
+    w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Nota Dinas ${esc(s.nomor_surat||'')}</title><style>@page{size:A4;margin:14mm 18mm 17mm}*{box-sizing:border-box}body{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.45;color:#000;margin:0}.toolbar{position:sticky;top:0;z-index:5;background:#eef7ff;padding:10px;text-align:right}.toolbar button{margin-left:6px;padding:8px 12px;border:1px solid #bdd3e2;border-radius:8px;background:white;font-weight:bold}.sheet{max-width:180mm;margin:auto}.print-head{display:flex;align-items:center;gap:13px;border-bottom:3px solid #174a79;padding:0 0 9px;margin-bottom:18px;color:#123e67}.print-head img{width:45px;height:45px;object-fit:contain}.print-head div{display:flex;flex-direction:column}.print-head b{font-family:Arial,sans-serif;font-size:18pt;line-height:1}.print-head span{font-family:Arial,sans-serif;font-size:9.5pt;font-weight:bold;margin-top:3px}.print-head small{font-family:Arial,sans-serif;font-size:7.5pt;margin-top:2px}.title{text-align:center;text-decoration:underline;font-weight:bold;font-size:14pt;margin:0 0 20px}.meta{width:100%;border-collapse:collapse;margin:16px 0}.meta td{vertical-align:top;padding:2px}.meta td:first-child{width:110px}.meta td:nth-child(2){width:12px}.isi{line-height:1.5}.isi p{margin:0 0 9px}.isi ol,.isi ul{margin:0 0 9px 25px}.ttd-row{display:grid;grid-template-columns:${approval?'1fr 1fr':'1fr'};gap:50px;margin-top:35px}.sign-box{text-align:center;${approval?'':'max-width:310px;margin-left:auto'}}.sign-space{height:58px}.tte-box-v140{display:inline-block;border:1px dashed #1e6e9d;border-radius:8px;padding:5px 9px;color:#155f8c;font-family:Arial,sans-serif;font-size:8.5pt;font-weight:bold;margin:4px 0}.sign-box small{display:block;color:#386883;font-size:8pt;margin-top:4px}.attachment-v140{margin-top:28px;padding:11px 12px;border:1px solid #bbb;border-radius:8px;page-break-inside:avoid}.footer{margin-top:22px;color:#607080;font-size:8.5pt}@media print{.toolbar{display:none}.sheet{max-width:none}}</style></head><body><div class="toolbar"><button onclick="window.close()">Tutup</button><button onclick="window.print()">Cetak / Simpan PDF</button></div><main class="sheet"><header class="print-head"><img src="${esc(logoUrlV140())}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header><div class="title">NOTA DINAS</div><table class="meta"><tr><td>Kepada Yth</td><td>:</td><td>${esc(s.tujuan_asli_nama||'Pimpinan')}</td></tr><tr><td>Dari</td><td>:</td><td>${esc(s.asal_nama||'-')}${s.asal_bidang?` (${esc(bidangName(s.asal_bidang)||s.asal_bidang)})`:''}</td></tr><tr><td>Nomor</td><td>:</td><td>${esc(s.nomor_surat||'-')}</td></tr><tr><td>Tanggal</td><td>:</td><td>${esc(formatDate(s.tanggal_surat)||'-')}</td></tr><tr><td>Sifat</td><td>:</td><td>${esc(s.sifat||'PENTING')}</td></tr><tr><td>Perihal</td><td>:</td><td>${esc(s.perihal||'-')}</td></tr></table><div class="isi">${body}</div><div class="ttd-row">${approval}<div class="sign-box"><b>Pengirim</b><div class="sign-space"></div>${signed?'<div class="tte-box-v140">TTE SIMPROV</div><br>':''}<b>${esc(senderName)}</b><small>${esc(s.pengirim_ttd_digital||'Ditandatangani secara elektronik melalui SIMPROV')}</small></div></div>${attachment}<div class="footer">Dokumen dibuat dan dicatat melalui SIMPROV • ID Surat: ${esc(s.id_surat||'-')}</div></main></body></html>`);w.document.close();
   };
 
   /* 7. Ringkasan Pengadaan Langsung tidak lagi menampilkan kolom Penyedia. */
@@ -11777,7 +11790,7 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
     if(!input)return;
     const show=input.type==='password';
     input.type=show?'text':'password';
-    if(btn){btn.setAttribute('aria-label',show?'Sembunyikan password':'Tampilkan password');btn.title=show?'Sembunyikan password':'Tampilkan password';btn.querySelector('span').textContent=show?'🙈':'👁';}
+    if(btn){btn.setAttribute('aria-label',show?'Sembunyikan password':'Tampilkan password');btn.title=show?'Sembunyikan password':'Tampilkan password';btn.querySelector('span').innerHTML=show?'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2m-6.7-1.1a3 3 0 1 1-4.2-4.2"/><path d="M1 1l22 22"/></svg>':'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';}
     input.focus({preventScroll:true});
   };
 
@@ -11986,7 +11999,9 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
     const template=DOC_TEMPLATE_V149[key];
     if(template)actions.push(helperButtonV149('Buka Template',`openTemplateSourceV123('${esc(template)}')`));
     if(key===dokKeyV94('Spesifikasi Teknis dan HPS'))actions.push(helperButtonV149('Buat di Sistem',`bukaHpsOptionalV121('${id}')`,'system'));
-    if(key===dokKeyV94('SPTJM')&&['BIDANG','ADMIN'].includes(String(actualRoleV133()||'').toUpperCase()))actions.push(helperButtonV149('Buat di Sistem',`openPaymentForActivityV145('${id}')`,'system'));
+    if(key===dokKeyV94('SPTJM')&&['BIDANG','ADMIN'].includes(String(actualRoleV133()||'').toUpperCase())
+       &&!(typeof isBelanjaLangsungV1661==='function'&&isBelanjaLangsungV1661(k)))
+      actions.push(helperButtonV149('Buat di Sistem',`openPaymentForActivityV145('${id}')`,'system'));
     if(actions.length)return `<div class="document-helper-actions-v149">${actions.map((x,i)=>`${i?'<span class="document-helper-separator-v149">/</span>':''}${x}`).join('')}</div>`;
     return currentHtml&&String(currentHtml).trim()!=='-'?currentHtml:'-';
   }
@@ -12175,7 +12190,7 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
         <td>${selesai?'<span class="paket-status-selesai-v117">Paket Sudah Selesai</span>':esc(paketStatusV95(k))}</td>
         <td>${esc(paketTanggalV95(k))}</td>
         <td>${esc(bidangName(k.id_bidang))}</td>
-        <td><button class="btn-soft paket-buka-v95" onclick="bukaPaketV95('${esc(k.id_kegiatan)}')" type="button">${esc(opts.aksiLabel||'Buka Paket')}</button></td>
+        <td><button class="btn-soft paket-buka-v95" onclick="bukaPaketV95('${esc(k.id_kegiatan)}')" type="button">${esc(typeof labelPaketV1660==='function'?labelPaketV1660(opts,k):(opts.aksiLabel||'Buka Paket'))}</button></td>
       </tr>`;
     }).join('');
     const buatBtn=(!canManage()&&!isReviewer()&&!isVerifierV77())?`<button onclick="buatPaketV95()" type="button" class="paket-buat-v95">+ Buat Paket</button>`:'';
@@ -12382,7 +12397,7 @@ function printPaymentDocV138(id,type){const {p,activity,bidang,rincian,rekening}
       if(btn){
         btn.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
         btn.title = show ? 'Sembunyikan password' : 'Tampilkan password';
-        var sp = btn.querySelector('span'); if(sp) sp.textContent = show ? '🙈' : '👁';
+        var sp = btn.querySelector('span'); if(sp) sp.innerHTML = show ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.1 10.1 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2m-6.7-1.1a3 3 0 1 1-4.2-4.2"/><path d="M1 1l22 22"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
       }
       input.focus({preventScroll:true});
       try{ input.setSelectionRange(selStart, selEnd); }catch(e){}          /* kembalikan kursor */
@@ -12661,7 +12676,7 @@ function renderNonPrintWindowV155(win,id,version){
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>${title} - ${esc(k.id_kegiatan)} V${version}</title><style>
     *{box-sizing:border-box}html,body{margin:0;padding:0;color:#111}body{font-family:Arial,sans-serif;background:#edf1f5}.toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;gap:8px;padding:11px 18px;background:#fff;border-bottom:1px solid #d7dde5}.toolbar button{border:0;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.print{background:#0b63ce;color:#fff}.close{background:#e8edf3;color:#223}.page{width:297mm;min-height:210mm;margin:14px auto;background:#fff;padding:8mm 10mm 9mm;box-shadow:0 6px 24px #0002}.system-head{display:flex;align-items:center;gap:9px;padding-bottom:5px;border-bottom:2px solid #1767aa}.system-head img{width:27px;height:27px;object-fit:contain}.system-head b{display:block;font-size:13px;color:#115b98;line-height:1}.system-head span{display:block;font-size:7.5px;font-weight:700;margin-top:2px}.system-head small{display:block;font-size:6.5px;color:#5c6670;margin-top:1px}.doc-title{text-align:center;text-transform:uppercase;margin:8mm 0 7mm}.doc-title h1{font-size:14pt;margin:0 0 4mm;font-weight:800}.doc-title h2{font-size:12pt;margin:0 0 3mm;font-weight:800}.doc-title h3{font-size:11pt;margin:0;font-weight:800}.payment-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.4pt}.payment-table th,.payment-table td{border:1px solid #111;padding:2.2mm 1.4mm;vertical-align:middle}.payment-table th{text-align:center;font-weight:700;line-height:1.18}.payment-table tbody tr{height:15mm}.payment-table .center{text-align:center}.payment-table .name{text-align:left;font-weight:600}.payment-table .money{text-align:right;white-space:nowrap}.payment-table .money small{display:block;font-size:7pt;margin-top:1.5mm;text-align:center}.payment-table .date-cell{line-height:1.3}.payment-table .recipient-sign{position:relative;padding:0;height:15mm}.payment-table .recipient-sign span{position:absolute;top:2.2mm;font-weight:700}.payment-table .recipient-sign.left span{left:2mm}.payment-table .recipient-sign.right span{right:2mm}.payment-table tfoot td{font-weight:800;background:#fafafa;height:9mm}.payment-table .total-label{text-align:right}.payment-table col.no{width:3%}.payment-table col.nama{width:14.5%}.payment-table col.tanggal{width:12.5%}.payment-table col.jabatan{width:11.5%}.payment-table col.vol{width:3.5%}.payment-table col.sat{width:4.5%}.payment-table col.harga{width:9%}.payment-table col.jumlah{width:9%}.payment-table col.pajak{width:8.5%}.payment-table col.netto{width:10%}.payment-table col.ttd{width:14%}.terbilang{display:grid;grid-template-columns:35mm 4mm 1fr;gap:2mm;margin:8mm 0 0 6mm;font-family:'Times New Roman',serif;font-size:10.5pt}.terbilang em{font-weight:700}.sign-date{text-align:right;margin:8mm 18mm 0 0;font-size:9.5pt}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:55mm;margin:3mm 18mm 0;text-align:center;font-size:9.5pt}.signatures .space{height:20mm}.signatures .name-line{font-weight:800;text-decoration:underline}.signatures small{display:block;margin-top:1mm}.audit{margin-top:7mm;border-top:1px solid #bbc3cc;padding-top:2mm;font-size:6.8pt;color:#66717d;display:flex;justify-content:space-between;gap:8mm}.audit span:last-child{text-align:right}@media print{body{background:#fff}.toolbar{display:none}.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:5mm 7mm 6mm}.payment-table thead{display:table-header-group}.payment-table tr{break-inside:avoid}.system-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 landscape;margin:5mm}}</style></head><body>
     <div class="toolbar"><button class="print" onclick="window.print()">Cetak / Simpan PDF</button><button class="close" onclick="window.close()">Tutup</button></div><main class="page">
-    <header class="system-head"><img src="${logo}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi Monitoring Persiapan PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>
+    <header class="system-head"><img src="${logo}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>
     <section class="doc-title"><h1>${title}</h1><h2>${esc(k.nama_kegiatan)}</h2><h3>BULAN ${esc(period.bulan)} TAHUN ${esc(period.tahun)}</h3></section>
     <table class="payment-table"><colgroup><col class="no"><col class="nama"><col class="tanggal"><col class="jabatan"><col class="vol"><col class="sat"><col class="harga"><col class="jumlah"><col class="pajak"><col class="netto"><col class="ttd"></colgroup><thead><tr><th>NO</th><th>NAMA</th><th>HARI DAN TANGGAL<br>KEGIATAN</th><th>JABATAN / PERAN</th><th>VOL</th><th>SAT</th><th>HARGA SAT<br>RP</th><th>JUMLAH<br>RP</th><th>PPH 21</th><th>JUMLAH YANG<br>DITERIMA</th><th>TANDA<br>TANGAN</th></tr></thead><tbody>${bodyRows||'<tr><td colspan="11" class="center">Tidak ada data penerima.</td></tr>'}</tbody><tfoot><tr><td colspan="7" class="total-label">TOTAL</td><td class="money">${nonPrintMoneyV155(totalBruto)}</td><td class="money">${nonPrintMoneyV155(totalPajak)}</td><td class="money">${nonPrintMoneyV155(totalNetto)}</td><td></td></tr></tfoot></table>
     <div class="terbilang"><span>Terbilang</span><span>:</span><em>${esc(terbilang)}</em></div>
@@ -12809,7 +12824,7 @@ renderNonPrintWindowV155=function(win,id,version){
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>${title} - ${esc(k.id_kegiatan)} V${version}</title><style>
     *{box-sizing:border-box}html,body{margin:0;padding:0;color:#111}body{font-family:Arial,sans-serif;background:#edf1f5}.toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;gap:8px;padding:11px 18px;background:#fff;border-bottom:1px solid #d7dde5}.toolbar button{border:0;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.print{background:#0b63ce;color:#fff}.close{background:#e8edf3;color:#223}.page{width:297mm;min-height:210mm;margin:14px auto;background:#fff;padding:8mm 10mm 9mm;box-shadow:0 6px 24px #0002}.system-head{display:flex;align-items:center;gap:9px;padding-bottom:5px;border-bottom:2px solid #1767aa}.system-head img{width:27px;height:27px;object-fit:contain}.system-head b{display:block;font-size:13px;color:#115b98;line-height:1}.system-head span{display:block;font-size:7.5px;font-weight:700;margin-top:2px}.system-head small{display:block;font-size:6.5px;color:#5c6670;margin-top:1px}.doc-title{text-align:center;text-transform:uppercase;margin:8mm 0 7mm}.doc-title h1{font-size:14pt;margin:0 0 4mm;font-weight:800}.doc-title h2{font-size:12pt;margin:0 0 3mm;font-weight:800}.doc-title h3{font-size:11pt;margin:0;font-weight:800}.payment-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.4pt}.payment-table th,.payment-table td{border:1px solid #111;padding:2.2mm 1.4mm;vertical-align:middle}.payment-table th{text-align:center;font-weight:700;line-height:1.18}.payment-table tbody tr{height:15mm}.payment-table .center{text-align:center}.payment-table .name{text-align:left;font-weight:600}.payment-table .money{text-align:right;white-space:nowrap}.payment-table .date-cell{line-height:1.3}.payment-table .recipient-sign{position:relative;padding:0;height:15mm}.payment-table .recipient-sign span{position:absolute;top:2.2mm;font-weight:700}.payment-table .recipient-sign.left span{left:2mm}.payment-table .recipient-sign.right span{right:2mm}.payment-table tfoot td{font-weight:800;background:#fafafa;height:9mm}.payment-table .total-label{text-align:right}.payment-table col.no{width:3%}.payment-table col.nama{width:14.5%}.payment-table col.tanggal{width:12.5%}.payment-table col.jabatan{width:11.5%}.payment-table col.vol{width:3.5%}.payment-table col.sat{width:4.5%}.payment-table col.harga{width:9%}.payment-table col.jumlah{width:9%}.payment-table col.pajak{width:8.5%}.payment-table col.netto{width:10%}.payment-table col.ttd{width:14%}.terbilang{display:grid;grid-template-columns:35mm 4mm 1fr;gap:2mm;margin:8mm 0 0 6mm;font-family:'Times New Roman',serif;font-size:10pt}.terbilang em{font-weight:700}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:42mm;margin:8mm 20mm 0;text-align:center;font-family:'Times New Roman',serif;font-size:10pt}.signatures .sign-right{display:flex;flex-direction:column;align-items:center}.signatures .city-date{margin-bottom:4mm}.signatures .space{height:24mm}.signatures .name-line{font-weight:800;text-decoration:underline}.signatures small{display:block;margin-top:1mm}.audit{margin-top:7mm;border-top:1px solid #bbc3cc;padding-top:2mm;font-size:6.8pt;color:#66717d;display:flex;justify-content:space-between;gap:8mm}.audit span:last-child{text-align:right}@media print{body{background:#fff}.toolbar{display:none}.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:5mm 7mm 6mm}.payment-table thead{display:table-header-group}.payment-table tr{break-inside:avoid}.system-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 landscape;margin:5mm}}</style></head><body>
     <div class="toolbar"><button class="print" onclick="window.print()">Cetak / Simpan PDF</button><button class="close" onclick="window.close()">Tutup</button></div><main class="page">
-    <header class="system-head"><img src="${logo}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi Monitoring Persiapan PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>
+    <header class="system-head"><img src="${logo}" alt="Logo SIMPROV"><div><b>SIMPROV</b><span>Sistem Informasi PORPROV Kota Bogor</span><small>Dokumen resmi dibuat dan tercatat melalui SIMPROV</small></div></header>
     <section class="doc-title"><h1>${title}</h1><h2>${esc(k.nama_kegiatan)}</h2><h3>BULAN ${esc(period.bulan)} TAHUN ${esc(period.tahun)}</h3></section>
     <table class="payment-table"><colgroup><col class="no"><col class="nama"><col class="tanggal"><col class="jabatan"><col class="vol"><col class="sat"><col class="harga"><col class="jumlah"><col class="pajak"><col class="netto"><col class="ttd"></colgroup><thead><tr><th>NO</th><th>NAMA</th><th>HARI DAN TANGGAL<br>KEGIATAN</th><th>JABATAN / PERAN</th><th>VOL</th><th>SAT</th><th>HARGA SAT<br>RP</th><th>JUMLAH<br>RP</th><th>PPH 21</th><th>JUMLAH YANG<br>DITERIMA</th><th>TANDA<br>TANGAN</th></tr></thead><tbody>${bodyRows||'<tr><td colspan="11" class="center">Tidak ada data penerima.</td></tr>'}</tbody><tfoot><tr><td colspan="7" class="total-label">TOTAL</td><td class="money">${nonPrintMoneyV155(totalBruto)}</td><td class="money">${nonPrintMoneyV155(totalPajak)}</td><td class="money">${nonPrintMoneyV155(totalNetto)}</td><td></td></tr></tfoot></table>
     <div class="terbilang"><span>Terbilang</span><span>:</span><em>${esc(terbilang)}</em></div>
@@ -13787,7 +13802,7 @@ verifikasiRealisasiNonV112=async function(id,mode){
       <div class="plan-detail-head-v161"><div><small>DETAIL PERENCANAAN</small><h3 id="planDetailTitleV161">${esc(k.nama_kegiatan||'-')}</h3><p>${esc(k.id_kegiatan||'-')} • ${esc(bidangName(k.id_bidang))}</p></div><button class="btn-soft" type="button" onclick="closePerencanaanDetailV161()">Tutup</button></div>
       <div class="plan-detail-scroll-v161">
         <h4>Identitas Paket</h4><div class="plan-detail-grid-v161">
-          ${detailRowV161('ID Kegiatan',k.id_kegiatan)}${detailRowV161('Bidang',bidangName(k.id_bidang))}${detailRowV161('Kategori',k.kategori||'-')}${detailRowV161('Jenis Non Pengadaan',k.jenis_non_pengadaan||'-')}${detailRowV161('Status Perencanaan',displayStatusText(k.status_perencanaan||'-'))}${detailRowV161('Status Paket',paketStatusV95(k))}
+          ${detailRowV161('Kode RAB',k.kode_rab||'-')}${detailRowV161('Uraian RAB',uraianRabV1662(k),true)}${detailRowV161('ID Kegiatan',k.id_kegiatan)}${detailRowV161('Bidang',bidangName(k.id_bidang))}${detailRowV161('Kategori',k.kategori||'-')}${detailRowV161('Jenis Non Pengadaan',k.jenis_non_pengadaan||'-')}${detailRowV161('Status Perencanaan',displayStatusText(k.status_perencanaan||'-'))}${detailRowV161('Status Paket',paketStatusV95(k))}
         </div>
         <h4>Dasar dan Cara Pelaksanaan</h4><div class="plan-detail-grid-v161">
           ${detailRowV161('Sumber Harga',sourcePriceLabelV161(k))}${detailRowV161('Jenis Pengadaan',k.jenis_pengadaan||k.jenis_non_pengadaan||'-')}${detailRowV161('Cara Pelaksanaan',k.cara_pelaksanaan||'-')}${detailRowV161('Metode Pemilihan',k.metode_pemilihan||'-')}${detailRowV161('Waktu Pemilihan',k.waktu_pemilihan?formatTanggalID(k.waktu_pemilihan):'-')}${detailRowV161('Satuan',k.satuan||'-')}
@@ -17389,7 +17404,9 @@ verifikasiRealisasiNonV112=async function(id,mode){
   }
   function paymentButtonStateV16422(activityId){
     const payment=latestPaymentForActivityV16422(activityId);
-    if(!payment)return {label:'Buat di Sistem',mode:'CREATE',payment:null};
+    /* v166.2: Belanja Langsung tidak lagi membuat pengajuan di dalam sistem.
+       Pengajuan yang sudah ada tetap dapat dilanjutkan atau dilihat. */
+    if(!payment)return {label:'',mode:'NONE',payment:null};
     const status=upperV16422(payment.status_pengajuan||'DRAFT');
     if(EDITABLE_PAYMENT_STATUS_V16422.has(status))return {label:'Lanjutkan Draft',mode:'EDIT',payment};
     return {label:'Lihat Pengajuan',mode:'VIEW',payment};
@@ -17410,6 +17427,14 @@ verifikasiRealisasiNonV112=async function(id,mode){
       if(!isSptjm)return;
       const actionCell=cells[3];
       let button=[...actionCell.querySelectorAll('button')].find(btn=>/BUAT DI SISTEM|BUAT SPTJM|LANJUTKAN DRAFT|LIHAT PENGAJUAN/i.test(btn.textContent||''));
+      if(state.mode==='NONE'){
+        if(button){
+          const pemisah=button.previousElementSibling;
+          if(pemisah&&pemisah.classList&&pemisah.classList.contains('document-helper-separator-v149'))pemisah.remove();
+          button.remove();
+        }
+        return;
+      }
       if(!button){
         const wrap=actionCell.querySelector('.document-helper-actions-v149')||actionCell;
         button=document.createElement('button');wrap.appendChild(button);
@@ -18492,4 +18517,1277 @@ verifikasiRealisasiNonV112=async function(id,mode){
   };
 
   window.__SIMPROV_PATCH_VERSION_V16427__=PATCH_VERSION_V16427;
+})();
+
+
+/* SIMPROV v165.1 - opsi Induk Bidang pada form Admin.
+   Hanya bidang tingkat atas yang belum menjadi cabang yang boleh dipilih. */
+function parentOptionsV165(terpilih){
+  var src = (typeof dashboard !== 'undefined' && dashboard) ? (dashboard.bidang || dashboard.bidangs || []) : [];
+  var rows = Array.isArray(src) ? src : [];
+  var kandidat = rows.filter(function(b){ return !String(b.id_parent || '').trim(); });
+  var sel = String(terpilih || '').trim().toUpperCase();
+  var html = '<option value="">Tidak ada (bidang tingkat atas)</option>';
+  kandidat.forEach(function(b){
+    var id = String(b.id_bidang || '').trim();
+    if(!id) return;
+    html += '<option value="' + esc(id) + '"' + (sel === id.toUpperCase() ? ' selected' : '') + '>' + esc(id + ' - ' + (b.nama_bidang || '')) + '</option>';
+  });
+  return html;
+}
+window.parentOptionsV165 = parentOptionsV165;
+
+
+/* SIMPROV v165.2 - opsi bidang untuk akun User Bidang, hapus akun,
+   hapus bidang, dan migrasi password lama. */
+
+function bidangTunggalOptionsV165(terpilih){
+  var src=(typeof dashboard!=='undefined'&&dashboard)?(dashboard.bidang||dashboard.bidangs||[]):[];
+  var rows=Array.isArray(src)?src:[];
+  var sel=String(terpilih||'').trim().toUpperCase();
+  var html='<option value="">-- Pilih bidang --</option>';
+  rows.forEach(function(b){
+    var id=String(b.id_bidang||'').trim(); if(!id) return;
+    var induk=String(b.id_parent||'').trim();
+    var label=id+' - '+(b.nama_bidang||'')+(induk?'  (cabang '+induk+')':'');
+    html+='<option value="'+esc(id)+'"'+(sel===id.toUpperCase()?' selected':'')+'>'+esc(label)+'</option>';
+  });
+  return html;
+}
+window.bidangTunggalOptionsV165=bidangTunggalOptionsV165;
+
+async function hapusAkunV165(idUser,nama){
+  var ok=await confirmActionV133({title:'Hapus Akun',message:'Akun '+(nama||idUser)+' akan dihapus permanen dari sheet USER. Lanjutkan?',confirmText:'Ya, Hapus'});
+  if(!ok)return;
+  showLoading('Menghapus akun...');
+  try{
+    var r=await apiPost({action:'deleteManagedAccountV165',user:currentUser,id_user:idUser});
+    if(!r.success)throw new Error(r.message||'Gagal menghapus akun');
+    await loadDashboard(false); renderAll(); alert(r.message);
+  }catch(e){alert(e.message||String(e));}
+  finally{hideLoading();}
+}
+window.hapusAkunV165=hapusAkunV165;
+
+async function hapusBidangV165(idBidang,nama){
+  var ok=await confirmActionV133({title:'Hapus Bidang',message:'Bidang '+(nama||idBidang)+' akan dihapus. Hanya bisa dihapus bila tidak punya cabang, kegiatan, maupun akun.',confirmText:'Ya, Hapus'});
+  if(!ok)return;
+  showLoading('Menghapus bidang...');
+  try{
+    var r=await apiPost({action:'deleteBidangV165',user:currentUser,id_bidang:idBidang});
+    if(!r.success)throw new Error(r.message||'Gagal menghapus bidang');
+    await loadDashboard(false); renderAll(); alert(r.message);
+  }catch(e){alert(e.message||String(e));}
+  finally{hideLoading();}
+}
+window.hapusBidangV165=hapusBidangV165;
+
+async function migrasiPasswordV165(){
+  var ok=await confirmActionV133({title:'Amankan Password Lama',message:'Seluruh password yang masih tersimpan sebagai teks biasa akan diubah menjadi SHA256. Password pengguna tidak berubah, hanya cara penyimpanannya. Lanjutkan?',confirmText:'Ya, Amankan'});
+  if(!ok)return;
+  showLoading('Mengamankan password...');
+  try{
+    var r=await apiPost({action:'migratePasswordsV165',user:currentUser});
+    if(!r.success)throw new Error(r.message||'Migrasi gagal');
+    alert(r.message);
+  }catch(e){alert(e.message||String(e));}
+  finally{hideLoading();}
+}
+window.migrasiPasswordV165=migrasiPasswordV165;
+
+
+/* SIMPROV v165.4 - Dashboard Publik mengikuti Notula Rapat 21 Juli 2026.
+   Poin 1: istilah "Sisa Pagu Realisasi" dihapus dari tampilan.
+   Poin 2: "Progres Anggaran" menjadi "Persentase Realisasi".
+   Poin 3: "Total Perencanaan", "Kegiatan", dan "Selesai" dihapus.
+   Poin 4: rincian pagu per bidang dipertahankan dan dilengkapi
+           persentase realisasi tiap bidang.
+   Angka tetap berasal dari payload yang sama, tidak ada request tambahan. */
+(function(){
+  if(typeof renderPublicDashboardV82!=='function')return;
+
+  const pctOf=(real,pagu)=>{const p=Number(pagu)||0;return p?Math.max(0,Math.min(100,(Number(real)||0)/p*100)):0;};
+
+  renderPublicDashboardV82=function(payload,fromCache=false){
+    const sum=document.getElementById('publicSummary');if(!sum)return;
+    const s=payload.summary||{},ident=payload.identity||{};
+    const compact=typeof compactRupiahV84==='function'?compactRupiahV84:rupiah;
+    const pct=Math.max(0,Math.min(100,Number(s.persentase_realisasi||0)));
+
+    const identity=document.getElementById('publicIdentity');
+    if(identity)identity.innerHTML=[
+      ident.ketua_umum&&`Ketua Umum: ${esc(ident.ketua_umum)}`,
+      ident.sekretaris_umum&&`Sekretaris Umum: ${esc(ident.sekretaris_umum)}`,
+      ident.verifikator&&`Verifikator: ${esc(ident.verifikator)}`
+    ].filter(Boolean).map(x=>`<span>${x}</span>`).join('');
+
+    sum.innerHTML=[
+      publicMetricCard('Total Pagu',compact(s.total_pagu),'Anggaran seluruh bidang','blue'),
+      publicMetricCard('Total Realisasi',compact(s.realisasi_total),
+        Number(s.realisasi_total)>0?'Anggaran yang sudah terserap':'Belum ada realisasi tercatat','green')
+    ].join('');
+
+    const progress=document.getElementById('publicProgress');
+    const adaRealisasi=Number(s.realisasi_total)>0;
+    if(progress)progress.innerHTML=adaRealisasi
+      ? `<div class="big-percent">${pct.toFixed(1)}%</div>`+
+        `<div class="public-progress-track"><i style="width:${pct}%"></i></div>`+
+        `<div class="public-progress-notes"><span>Terserap ${compact(s.realisasi_total)}</span>`+
+        `<span>dari ${compact(s.total_pagu)}</span></div>`
+      : `<p class="public-belum-v1656">Belum ada realisasi anggaran yang tercatat. `+
+        `Angka akan muncul setelah kegiatan diselesaikan dan diverifikasi.</p>`;
+
+    const composition=document.getElementById('publicComposition');
+    if(composition)composition.innerHTML='';
+
+    const daftar=(payload.ringkasan||[]).slice().sort((a,b)=>(Number(b.pagu)||0)-(Number(a.pagu)||0));
+    const rows=daftar.map(x=>{
+      const real=Number(x.realisasi_total)||0, p=pctOf(real,x.pagu);
+      return `<tr><td>${esc(x.nama_bidang||x.id_bidang)}</td>`+
+             `<td title="${rupiah(x.pagu)}">${compact(x.pagu)}</td>`+
+             `<td>${real>0?`<span title="${rupiah(real)}">${compact(real)}</span>`:'<span class="nol-v1656">&ndash;</span>'}</td>`+
+             `<td class="pct-cell-v1654">${real>0?p.toFixed(1)+'%':'<span class="nol-v1656">&ndash;</span>'}</td></tr>`;
+    }).join('');
+
+    const table=document.getElementById('publicBidangTable');
+    if(table)table.innerHTML=
+      `<table class="public-table-v82"><thead><tr><th>Bidang</th><th>Total Pagu</th>`+
+      `<th>Total Realisasi</th><th>Persentase Realisasi</th></tr></thead><tbody>`+
+      (rows||'<tr><td colspan="4" class="empty">Belum ada data</td></tr>')+
+      `</tbody></table>`;
+  };
+})();
+
+
+/* SIMPROV v165.5 - Impor RAB dari CSV (menu Admin).
+   Pembacaan berkas, pembersihan, dan pratinjau dikerjakan di browser
+   supaya berkas bermasalah langsung ketahuan tanpa menunggu Apps Script.
+   Backend hanya menerima baris yang sudah bersih. */
+(function(){
+
+  /* Pembaca CSV yang menangani tanda kutip, koma di dalam kutip, dan CRLF. */
+  /* Excel dengan pengaturan wilayah Indonesia menyimpan CSV memakai titik koma.
+     Pemisah ditentukan sekali dari baris judul, lalu dipakai konsisten. Memotong
+     pada koma dan titik koma sekaligus membuat kolom bergeser bila salah satunya
+     muncul di dalam isi sel. */
+  function delimiterV1655(teks){
+    var judul=String(teks||'').split(/\r?\n/)[0]||'';
+    var luar=true, n={',':0,';':0,'\t':0};
+    for(var i=0;i<judul.length;i++){
+      var c=judul[i];
+      if(c==='"') luar=!luar;
+      else if(luar && n[c]!==undefined) n[c]++;
+    }
+    var pilih=',', besar=n[','];
+    if(n[';']>besar){ pilih=';'; besar=n[';']; }
+    if(n['\t']>besar){ pilih='\t'; }
+    return pilih;
+  }
+
+  function parseCsvV1655(teks, pemisah){
+    var s=String(teks||'').replace(/^\uFEFF/,'');
+    var d=pemisah||delimiterV1655(s);
+    var baris=[], sel=[], buf='', kutip=false;
+    for(var i=0;i<s.length;i++){
+      var c=s[i];
+      if(kutip){
+        if(c==='"'){ if(s[i+1]==='"'){buf+='"';i++;} else kutip=false; }
+        else buf+=c;
+      }else if(c==='"') kutip=true;
+      else if(c===d){ sel.push(buf); buf=''; }
+      else if(c==='\n'){ sel.push(buf); baris.push(sel); sel=[]; buf=''; }
+      else if(c!=='\r') buf+=c;
+    }
+    if(buf.length||sel.length){ sel.push(buf); baris.push(sel); }
+    return baris.filter(function(r){ return r.some(function(x){ return String(x).trim(); }); });
+  }
+
+  var kunci=function(h){ return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,''); };
+
+  /* Nama kolom di berkas RAB bisa berbeda-beda. Cocokkan longgar. */
+  var ALIAS={
+    kode_rab:['koderab','kode','kodekomponen','kd'],
+    id_bidang:['idbidang','kodebidang'],
+    uraian:['rinciankebutuhan','uraian','rincian','namakegiatan','komponen','nama'],
+    keterangan:['keterangan','ket'],
+    volume:['volume','vol'],
+    satuan:['satuan','sat'],
+    harga_satuan:['hargasatuan','harga','hrgsatuan'],
+    pagu:['jumlah','pagu','total','nilai'],
+    kategori:['kategori','kategoripengadaan'],
+    jenis_pengadaan:['jenispengadaan','jenis'],
+    metode_pemilihan:['metodepemilihan','metode'],
+    nama_bidang:['bidang','namabidang']
+  };
+
+  function petakanHeaderV1655(header){
+    var peta={}, dipakai={};
+    header.forEach(function(h,idx){
+      var k=kunci(h);
+      Object.keys(ALIAS).forEach(function(field){
+        if(peta[field]!==undefined||dipakai[idx]) return;
+        if(ALIAS[field].indexOf(k)>=0){ peta[field]=idx; dipakai[idx]=1; }
+      });
+    });
+    return peta;
+  }
+
+  /* "30.000.000" -> 30000000 ; "1.500,50" -> 1500.5 */
+  function angkaV1655(v){
+    var s=String(v==null?'':v).replace(/[^0-9.,\-]/g,'').trim();
+    if(!s) return 0;
+    var neg=/^-/.test(s); s=s.replace(/-/g,'');
+    if(!s) return 0;
+    var pTitik=s.lastIndexOf('.'), pKoma=s.lastIndexOf(','), iDes=-1;
+    if(pTitik>=0 && pKoma>=0){
+      iDes=Math.max(pTitik,pKoma);                 /* yang paling belakang adalah desimal */
+    }else{
+      var p=pTitik>=0?pTitik:pKoma;
+      if(p>=0){
+        var tanda=pTitik>=0?'.':',';
+        var jumlah=s.split(tanda).length-1, belakang=s.length-p-1;
+        /* satu pemisah diikuti tepat tiga angka dianggap pemisah ribuan,
+           sesuai penulisan nilai rupiah pada berkas RAB */
+        if(jumlah===1 && belakang!==3) iDes=p;
+      }
+    }
+    var utuh=iDes>=0?s.slice(0,iDes):s, pecah=iDes>=0?s.slice(iDes+1):'';
+    utuh=utuh.replace(/[.,]/g,''); pecah=pecah.replace(/[.,]/g,'');
+    var n=parseFloat((utuh||'0')+(pecah?'.'+pecah:''));
+    if(!isFinite(n)) return 0;
+    return neg?-n:n;
+  }
+
+  window.rabPreviewStateV1655=null;
+
+  function bacaCsvRabV1655(teks, rabLama){
+    var baris=parseCsvV1655(teks);
+    if(baris.length<2) return {ok:false,pesan:'Berkas kosong atau hanya berisi baris judul.'};
+
+    var peta=petakanHeaderV1655(baris[0]);
+    var wajib=['kode_rab','id_bidang','uraian','pagu'];
+    var hilang=wajib.filter(function(f){ return peta[f]===undefined; });
+    if(hilang.length) return {ok:false,pesan:'Kolom wajib tidak ditemukan: '+hilang.join(', ')+'. Periksa baris judul pada berkas CSV.'};
+
+    var ambil=function(r,f){ return peta[f]===undefined?'':String(r[peta[f]]==null?'':r[peta[f]]).trim(); };
+    var petaLama={};
+    (rabLama||[]).forEach(function(r){
+      if(String(r.status_rab||'AKTIF').toUpperCase()!=='AKTIF') return;
+      var k=String(r.kode_rab||'').trim().toUpperCase(); if(k) petaLama[k]=r;
+    });
+
+    var items=[], induk=0, indukDaftar=[], tolak=[], kodeAda={};
+    var nBaru=0, nUbah=0, nSama=0;
+
+    for(var i=1;i<baris.length;i++){
+      var r=baris[i], noBaris=i+1;
+      var uraian=ambil(r,'uraian'), pagu=angkaV1655(ambil(r,'pagu'));
+      var vol=angkaV1655(ambil(r,'volume')), harga=angkaV1655(ambil(r,'harga_satuan'));
+      if(!pagu && vol && harga) pagu=vol*harga;
+
+      var kode=ambil(r,'kode_rab'), idBidang=ambil(r,'id_bidang').toUpperCase();
+
+      /* Baris induk pada RAB bertingkat: tidak punya kode dan tidak punya nilai.
+         Baris yang punya kode TIDAK boleh dianggap induk, supaya baris data
+         tidak lenyap diam-diam ketika angkanya gagal terbaca. */
+      if(!kode && !pagu && !vol && !harga){
+        indukDaftar.push('Baris '+noBaris+': '+(uraian||'(tanpa uraian)'));
+        induk++; continue;
+      }
+      if(!kode){ tolak.push('Baris '+noBaris+': kode_rab kosong ('+(uraian||'tanpa uraian')+')'); continue; }
+      if(!pagu && !vol && !harga){
+        tolak.push('Baris '+noBaris+': '+kode+' punya kode tetapi nilainya tidak terbaca. Periksa kolom volume, harga satuan, dan jumlah.');
+        continue;
+      }
+      if(!uraian){ tolak.push('Baris '+noBaris+': uraian kosong'); continue; }
+      if(!idBidang){ tolak.push('Baris '+noBaris+': id_bidang kosong'); continue; }
+      if(pagu<=0){ tolak.push('Baris '+noBaris+': pagu tidak terbaca'); continue; }
+
+      var ku=kode.toUpperCase();
+      if(kodeAda[ku]){ tolak.push('Baris '+noBaris+': kode_rab ganda dalam berkas ('+kode+')'); continue; }
+      kodeAda[ku]=1;
+
+      if(vol&&harga&&Math.abs(vol*harga-pagu)>1)
+        tolak.push('Baris '+noBaris+': volume x harga ('+rupiah(vol*harga)+') tidak sama dengan jumlah ('+rupiah(pagu)+')');
+
+      var it={kode_rab:kode,id_bidang:idBidang,uraian:uraian,keterangan:ambil(r,'keterangan'),
+        volume:vol,satuan:ambil(r,'satuan'),harga_satuan:harga,pagu:pagu,
+        kategori:ambil(r,'kategori'),jenis_pengadaan:ambil(r,'jenis_pengadaan'),
+        metode_pemilihan:ambil(r,'metode_pemilihan')};
+
+      var lama=petaLama[ku];
+      if(!lama){ it._status='BARU'; nBaru++; }
+      else if(Number(lama.pagu)===pagu && String(lama.uraian||'')===uraian &&
+              String(lama.id_bidang||'').toUpperCase()===idBidang){ it._status='SAMA'; nSama++; }
+      else { it._status='BERUBAH'; it._pagu_lama=Number(lama.pagu)||0; it._dikunci=!!lama.dikunci; nUbah++; }
+      items.push(it);
+    }
+
+    return {ok:true,items:items,baru:nBaru,berubah:nUbah,sama:nSama,
+            induk:induk,indukDaftar:indukDaftar,tolak:tolak,
+            barisData:baris.length-1,
+            total:items.reduce(function(t,x){return t+x.pagu;},0)};
+  }
+
+  window.pilihCsvRabV1655=function(input){
+    var file=input&&input.files&&input.files[0];
+    if(!file) return;
+    if(file.size>3*1024*1024){ alert('Berkas terlalu besar. Maksimal 3 MB.'); input.value=''; return; }
+    var fr=new FileReader();
+    fr.onload=async function(){
+      var kotak=document.getElementById('rabPreviewV1655');
+      if(kotak) kotak.innerHTML='<p class="empty">Membaca berkas...</p>';
+      var lama=[];
+      try{
+        var res=await apiPost({action:'getRabV1655',user:currentUser});
+        if(res&&res.success) lama=res.rab||[];
+      }catch(e){}
+      var hasil=bacaCsvRabV1655(String(fr.result||''),lama);
+      if(!hasil.ok){ window.rabPreviewStateV1655=null; if(kotak) kotak.innerHTML='<p class="empty">'+esc(hasil.pesan)+'</p>'; return; }
+      window.rabPreviewStateV1655=hasil;
+      if(kotak) kotak.innerHTML=htmlPratinjauRabV1655(hasil);
+    };
+    fr.onerror=function(){ alert('Berkas gagal dibaca.'); };
+    fr.readAsText(file);
+  };
+
+  function htmlPratinjauRabV1655(h){
+    var kirim=h.baru+h.berubah;
+    var ringkas='<div class="rab-preview-stat-v1655">'+
+      '<span class="rab-chip-v1655">Baris data di berkas '+(h.barisData||0)+'</span>'+
+      '<span class="rab-chip-v1655 baru">Baru '+h.baru+'</span>'+
+      '<span class="rab-chip-v1655 ubah">Berubah '+h.berubah+'</span>'+
+      '<span class="rab-chip-v1655 sama">Tidak berubah '+h.sama+'</span>'+
+      (h.induk?'<span class="rab-chip-v1655 induk">Baris induk dilewati '+h.induk+'</span>':'')+
+      (h.tolak.length?'<span class="rab-chip-v1655 tolak">Bermasalah '+h.tolak.length+'</span>':'')+
+      '<span class="rab-chip-v1655 total">Total pagu '+rupiah(h.total)+'</span></div>';
+
+    var cek='<p class="panel-sub rab-cek-v1655">Rincian: '+h.items.length+' baris terbaca + '+
+      h.induk+' baris induk dilewati'+(h.tolak.length?' + '+h.tolak.length+' bermasalah':'')+
+      ' = '+(h.barisData||0)+' baris data di berkas.</p>';
+
+    var indukBox=h.induk?'<details class="rab-error-box-v1655 rab-induk-box-v1655"><summary><b>'+h.induk+
+      ' baris induk dilewati</b> (baris tanpa volume, harga, dan jumlah dianggap judul kelompok)</summary><ul>'+
+      (h.indukDaftar||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></details>':'';
+
+    var galat=h.tolak.length?'<div class="rab-error-box-v1655"><b>Baris yang perlu diperiksa</b><ul>'+
+      h.tolak.slice(0,15).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+
+      (h.tolak.length>15?'<li>dan '+(h.tolak.length-15)+' lainnya</li>':'')+'</ul></div>':'';
+
+    /* Seluruh baris ditampilkan, termasuk yang tidak berubah, supaya jumlahnya
+       dapat dicocokkan langsung dengan berkas sumber. */
+    var tampil=h.items.slice(0,200);
+    var baris=tampil.map(function(x){
+      var lencana=x._status==='BARU'?'<span class="rab-tag-v1655 baru">Baru</span>':
+        x._status==='BERUBAH'?'<span class="rab-tag-v1655 ubah">Berubah</span>':
+        '<span class="rab-tag-v1655 sama">Tidak berubah</span>';
+      var kunciTag=x._dikunci?' <span class="rab-tag-v1655 kunci">Terkunci</span>':'';
+      var pagu=x._status==='BERUBAH'
+        ? '<s>'+rupiah(x._pagu_lama)+'</s><br>'+rupiah(x.pagu)
+        : rupiah(x.pagu);
+      return '<tr'+(x._status==='SAMA'?' class="rab-row-sama-v1655"':'')+'>'+
+             '<td>'+esc(x.kode_rab)+kunciTag+'</td><td>'+esc(x.uraian)+'</td><td>'+esc(x.id_bidang)+'</td>'+
+             '<td class="num">'+(x.volume||'')+' '+esc(x.satuan||'')+'</td>'+
+             '<td class="num">'+rupiah(x.harga_satuan||0)+'</td>'+
+             '<td class="num">'+pagu+'</td>'+
+             '<td>'+esc(x.kategori||'-')+'</td><td>'+esc(x.jenis_pengadaan||'-')+'</td>'+
+             '<td>'+esc(x.metode_pemilihan||'-')+'</td><td>'+lencana+'</td></tr>';
+    }).join('');
+
+    var tabel=baris?'<div class="table-wrap"><table class="rab-preview-table-v1655"><thead><tr>'+
+      '<th>Kode</th><th>Uraian</th><th>Bidang</th><th>Volume</th><th>Harga Satuan</th><th>Jumlah</th>'+
+      '<th>Kategori</th><th>Jenis</th><th>Metode</th><th>Status</th>'+
+      '</tr></thead><tbody>'+baris+'</tbody></table></div>'+
+      (h.items.length>200?'<p class="panel-sub">Menampilkan 200 baris pertama dari '+h.items.length+' baris terbaca.</p>':'')
+      :'<p class="empty">Tidak ada baris yang terbaca dari berkas ini.</p>';
+
+    var tombol=kirim?'<button class="btn-refresh" onclick="simpanImporRabV1655()">Simpan '+kirim+' Baris ke Sistem</button>'
+      :'<span class="rab-chip-v1655 sama">Seluruh baris sudah sama dengan data tersimpan, tidak ada yang perlu disimpan</span>';
+    return ringkas+cek+indukBox+galat+tabel+'<div class="rab-preview-actions-v1655">'+tombol+
+      '<button class="btn-soft" onclick="batalImporRabV1655()">Batal</button></div>';
+  }
+
+  window.batalImporRabV1655=function(){
+    window.rabPreviewStateV1655=null;
+    var k=document.getElementById('rabPreviewV1655');
+    if(k) k.innerHTML='<p class="empty">Belum ada berkas yang dibaca.</p>';
+    var f=document.getElementById('rabFileV1655'); if(f) f.value='';
+  };
+
+  window.simpanImporRabV1655=async function(){
+    var h=window.rabPreviewStateV1655;
+    if(!h||!h.items){ alert('Belum ada berkas yang dibaca.'); return; }
+    var kirim=h.items.filter(function(x){return x._status!=='SAMA';})
+      .map(function(x){ var o={}; Object.keys(x).forEach(function(k){ if(k.charAt(0)!=='_') o[k]=x[k]; }); return o; });
+    if(!kirim.length){ alert('Tidak ada baris yang perlu disimpan.'); return; }
+
+    var ok=await confirmActionV133({title:'Simpan Impor RAB',
+      message:kirim.length+' baris akan disimpan. Baris lama dengan kode yang sama ditandai sebagai versi digantikan, bukan dihapus. Lanjutkan?',
+      confirmText:'Ya, Simpan'});
+    if(!ok) return;
+
+    showLoading('Menyimpan '+kirim.length+' baris RAB...');
+    try{
+      var r=await apiPost({action:'importRabV1655',user:currentUser,data:{items:kirim}});
+      if(!r.success) throw new Error(r.message||'Impor gagal');
+      alert(r.message+(r.errors&&r.errors.length?'\n\nDitolak:\n- '+r.errors.slice(0,10).join('\n- '):''));
+      window.batalImporRabV1655();
+      if(typeof renderAll==='function') renderAll();
+    }catch(e){ alert(e.message||String(e)); }
+    finally{ hideLoading(); }
+  };
+
+  window.panelImporRabV1655=function(){
+    return '<section class="panel fade-up premium-panel rab-import-panel-v1655">'+
+      '<div class="panel-title-row"><div><h3>Impor RAB dari CSV</h3>'+
+      '<p class="panel-sub">Bidang menyusun RAB, Admin mengunggahnya ke sistem. Berkas dibaca di perangkat ini dan ditampilkan lebih dulu sebagai pratinjau sebelum disimpan.</p></div></div>'+
+      '<div class="rab-import-head-v1655">'+
+      '<input type="file" id="rabFileV1655" accept=".csv,text/csv" onchange="pilihCsvRabV1655(this)">'+
+      '<small class="hint-v165">Kolom wajib: kode_rab, id_bidang, uraian, dan jumlah atau pagu. '+
+      'Kolom volume, satuan, harga satuan, kategori, jenis pengadaan, dan metode pemilihan ikut terbaca bila ada. '+
+      'Baris induk tanpa nilai akan dilewati.</small></div>'+
+      '<div id="rabRingkasV1655" class="rab-preview-stat-v1655"><span class="rab-chip-v1655 sama">Memuat daftar RAB...</span></div>'+'<div id="rabPreviewV1655" class="rab-preview-v1655"><p class="empty">Belum ada berkas yang dibaca.</p></div>'+
+      '</section>';
+  };
+})();
+
+
+/* SIMPROV v165.5b - Pasang panel Impor RAB pada renderManajemenAkunV65 yang AKTIF.
+   renderManajemenAkunV65 didefinisikan delapan kali. Versi yang berlaku adalah
+   penugasan terakhir (renderManageBaseV137 + setupManagementPanelsV137), bukan
+   deklarasi function di bagian atas berkas. Pembungkusan dilakukan di sini,
+   setelah seluruh definisi, sehingga selalu membungkus versi yang aktif. */
+(function(){
+  if(typeof renderManajemenAkunV65!=='function')return;
+  const dasar=renderManajemenAkunV65;
+
+  async function muatRingkasanRabV1655(){
+    const kotak=document.getElementById('rabRingkasV1655');
+    if(!kotak)return;
+    try{
+      const r=await apiPost({action:'getRabV1655',user:currentUser});
+      if(!r||!r.success){kotak.textContent='Daftar RAB belum dapat dibaca.';return;}
+      const aktif=(r.rab||[]).filter(x=>String(x.status_rab||'AKTIF').toUpperCase()==='AKTIF');
+      const total=aktif.reduce((t,x)=>t+(Number(x.pagu)||0),0);
+      const kunci=aktif.filter(x=>x.dikunci).length;
+      kotak.innerHTML=aktif.length
+        ? `<span class="rab-chip-v1655 total">${aktif.length} baris RAB aktif</span>`+
+          `<span class="rab-chip-v1655">Total pagu ${rupiah(total)}</span>`+
+          (kunci?`<span class="rab-chip-v1655 tolak">${kunci} terkunci</span>`:'')
+        : '<span class="rab-chip-v1655 sama">Belum ada RAB tersimpan</span>';
+    }catch(e){ kotak.textContent='Daftar RAB belum dapat dibaca.'; }
+  }
+
+  renderManajemenAkunV65=function(){
+    const hasil=dasar.apply(this,arguments);
+    try{
+      if(typeof isSuperAdminV65==='function' && !isSuperAdminV65()) return hasil;
+      const area=document.getElementById('contentArea');
+      if(area && typeof panelImporRabV1655==='function' && !document.getElementById('rabPreviewV1655')){
+        area.insertAdjacentHTML('beforeend',panelImporRabV1655());
+        muatRingkasanRabV1655();   /* sekaligus membentuk sheet RAB bila belum ada */
+      }
+    }catch(e){}
+    return hasil;
+  };
+})();
+
+
+/* SIMPROV v165.8 - Acuan RAB pada Input Perencanaan.
+   Daftar RAB dimuat sekali lalu disimpan di memori, sehingga berpindah menu
+   tidak memicu permintaan baru. Sisa pagu dihitung ulang di server saat
+   menyimpan, jadi angka di layar hanya panduan. */
+(function(){
+  let rabCacheV1658=null, rabMuatV1658=null;
+
+  function rabTerpilihV1658(){
+    const sel=document.getElementById('acuanRabV1658');
+    if(!sel||!sel.value||!rabCacheV1658)return null;
+    return rabCacheV1658.find(r=>r.id_rab===sel.value)||null;
+  }
+  window.rabTerpilihV1658=rabTerpilihV1658;
+
+  async function muatRabV1658(paksa){
+    if(rabCacheV1658&&!paksa)return rabCacheV1658;
+    if(rabMuatV1658&&!paksa)return rabMuatV1658;
+    rabMuatV1658=(async()=>{
+      try{
+        const r=await apiPost({action:'getRabV1655',user:currentUser});
+        rabCacheV1658=(r&&r.success)?(r.rab||[]).filter(x=>String(x.status_rab||'AKTIF').toUpperCase()==='AKTIF'):[];
+      }catch(e){ rabCacheV1658=[]; }
+      finally{ rabMuatV1658=null; }
+      return rabCacheV1658;
+    })();
+    return rabMuatV1658;
+  }
+  window.invalidasiRabV1658=()=>{rabCacheV1658=null;};
+
+  function isiOpsiRabV1658(){
+    const sel=document.getElementById('acuanRabV1658');
+    if(!sel)return;
+    const list=rabCacheV1658||[];
+    if(!list.length){
+      sel.innerHTML='<option value="">Belum ada RAB untuk bidang ini</option>';
+      infoRabV1658(); return;
+    }
+    sel.innerHTML='<option value="">-- Pilih baris RAB --</option>'+list.map(r=>{
+      const sisa=Number(r.sisa!=null?r.sisa:r.pagu)||0;
+      const habis=sisa<=0?' [habis]':'';
+      return `<option value="${esc(r.id_rab)}"${habis?' disabled':''}>${esc(r.kode_rab)} · ${esc(r.uraian)} · sisa ${rupiah(sisa)}${habis}</option>`;
+    }).join('');
+    infoRabV1658();
+  }
+
+  function infoRabV1658(){
+    const box=document.getElementById('infoRabV1658');
+    if(!box)return;
+    const r=rabTerpilihV1658();
+    if(!r){
+      box.innerHTML=(rabCacheV1658&&rabCacheV1658.length)
+        ? '<span class="rab-hint-v1658">Pilih baris RAB. Volume, satuan, harga, kategori, dan metode mengikuti RAB.</span>'
+        : '<span class="rab-hint-v1658">Belum ada RAB tersimpan untuk bidang ini. Hubungi Admin untuk mengunggah RAB.</span>';
+      return;
+    }
+    const sisa=Number(r.sisa!=null?r.sisa:r.pagu)||0;
+    box.innerHTML=`<span class="rab-info-v1658"><b>${esc(r.kode_rab)}</b> pagu ${rupiah(r.pagu)}`+
+      ` · terpakai ${rupiah(r.terpakai||0)} · <b class="${sisa>0?'sisa-ada':'sisa-habis'}">sisa ${rupiah(sisa)}</b></span>`;
+  }
+
+  window.pilihAcuanRabV1658=function(){
+    const r=rabTerpilihV1658();
+    infoRabV1658();
+    if(!r)return;
+    const set=(id,v)=>{const el=document.getElementById(id); if(el&&v!=null&&v!=='')el.value=v;};
+    set('namaKegiatan',r.uraian);
+    if(Number(r.volume)>0)set('volume',r.volume);
+    set('satuan',r.satuan);
+    if(Number(r.harga_satuan)>0)set('harga',r.harga_satuan);
+
+    const kat=String(r.kategori||'').toUpperCase();
+    const selKat=document.getElementById('kategoriPerencanaanV79');
+    if(selKat&&(kat==='PENGADAAN'||kat==='NON PENGADAAN')){
+      selKat.value=kat;
+      if(typeof toggleKategoriV79==='function')toggleKategoriV79();
+    }
+    const selJenis=document.getElementById('jenisPengadaanV96');
+    if(selJenis&&r.jenis_pengadaan){
+      const ada=Array.from(selJenis.options).some(o=>o.value===r.jenis_pengadaan);
+      if(ada)selJenis.value=r.jenis_pengadaan;
+    }
+    const metode=document.getElementById('metodePemilihan');
+    if(metode&&r.metode_pemilihan&&r.metode_pemilihan!=='-')metode.value=r.metode_pemilihan;
+
+    ['volume','harga'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el&&typeof el.dispatchEvent==='function')el.dispatchEvent(new Event('input',{bubbles:true}));
+    });
+  };
+
+  /* Sisipkan pemilih RAB di baris pertama form, mengikuti pola v79. */
+  if(typeof renderPerencanaan==='function'){
+    const dasar=renderPerencanaan;
+    renderPerencanaan=function(){
+      const hasil=dasar.apply(this,arguments);
+      try{
+        if(typeof canSeeAll==='function'&&canSeeAll())return hasil;
+        const nama=document.getElementById('namaKegiatan');
+        const grid=nama&&nama.closest('.form-grid');
+        if(grid&&!document.getElementById('acuanRabV1658')){
+          const f=document.createElement('div');
+          f.className='rab-acuan-block-v1658';
+          f.innerHTML='<div class="rab-acuan-inner-v1658"><label class="rab-acuan-label-v1658">Acuan RAB</label>'+
+            '<select id="acuanRabV1658" onchange="pilihAcuanRabV1658()"><option value="">Memuat daftar RAB...</option></select>'+
+            '<div id="infoRabV1658" class="rab-info-box-v1658"></div></div>';
+          /* Ditempatkan sebelum panel Sumber dan Referensi Biaya (#sbWrapV96),
+             karena pemilihan RAB adalah langkah pertama sebelum sumber harga. */
+          const sumber=document.getElementById('sbWrapV96');
+          if(sumber&&sumber.parentNode) sumber.parentNode.insertBefore(f,sumber);
+          else grid.insertBefore(f,grid.firstChild);
+          muatRabV1658().then(isiOpsiRabV1658);
+          /* Jaga urutan: bila panel sumber muncul belakangan, pindahkan
+             Acuan RAB agar tetap di atasnya. Idempoten. */
+          const rapikan=()=>{
+            const rab=document.getElementById('acuanRabV1658');
+            const sb=document.getElementById('sbWrapV96');
+            const blok=rab&&rab.closest('.rab-acuan-block-v1658');
+            if(blok&&sb&&sb.parentNode&&blok.nextElementSibling!==sb){
+              sb.parentNode.insertBefore(blok,sb);
+            }
+          };
+          setTimeout(rapikan,0); setTimeout(rapikan,200);
+        }
+      }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Kirim id_rab dan tahan bila melebihi sisa. */
+  if(typeof savePerencanaan==='function'){
+    const kirimDasar=savePerencanaan;
+    savePerencanaan=async function(){
+      const sel=document.getElementById('acuanRabV1658');
+      const punyaRab=rabCacheV1658&&rabCacheV1658.length;
+      if(punyaRab&&sel&&!sel.value){ alert('Pilih acuan RAB terlebih dahulu.'); return; }
+      const r=rabTerpilihV1658();
+      if(r){
+        const vol=toNumber(document.getElementById('volume')?.value);
+        const hrg=toNumber(document.getElementById('harga')?.value);
+        const sisa=Number(r.sisa!=null?r.sisa:r.pagu)||0;
+        if(vol*hrg>sisa){
+          alert('Nilai kegiatan '+rupiah(vol*hrg)+' melebihi sisa pagu RAB '+r.kode_rab+'.\nSisa yang tersedia '+rupiah(sisa)+'.');
+          return;
+        }
+      }
+      const hasil=await kirimDasar.apply(this,arguments);
+      rabCacheV1658=null;                       /* sisa berubah, muat ulang saat dibutuhkan */
+      const s=document.getElementById('acuanRabV1658');
+      if(s){ muatRabV1658(true).then(isiOpsiRabV1658); }
+      return hasil;
+    };
+
+    /* id_rab disisipkan ke payload tanpa mengubah pembangun data yang sudah ada. */
+    const postDasarV1658=apiPost;
+    apiPost=function(payload){
+      if(payload&&payload.action==='savePerencanaan'&&payload.data){
+        const r=rabTerpilihV1658();
+        if(r&&!payload.data.id_rab){ payload.data.id_rab=r.id_rab; payload.data.kode_rab=r.kode_rab; }
+      }
+      return postDasarV1658(payload);
+    };
+  }
+})();
+
+
+/* SIMPROV v166 - Label tombol paket mengikuti peran.
+   Bidang adalah pihak yang mengunggah dokumen, sehingga tombolnya menyebut
+   tindakan yang akan dilakukan. Peran lain hanya melihat. */
+function labelPaketV1660(opts,k){
+  var o=opts||{};
+  try{
+    var role=String((typeof currentUser!=='undefined'&&currentUser&&currentUser.role)||'').toUpperCase();
+    var pengawas=(role==='ADMIN'||role.indexOf('VERIFIKATOR')===0||role==='PIMPINAN'||role==='BENDAHARA');
+    if(!pengawas) return 'Input Dokumen';
+  }catch(e){}
+  return o.aksiLabel||'Lihat Paket';
+}
+window.labelPaketV1660=labelPaketV1660;
+
+
+/* SIMPROV v166.1 - Harga satuan terkunci saat memakai Standar Biaya,
+   dan SPTJM tidak lagi dapat dibuat di sistem untuk Belanja Langsung. */
+(function(){
+
+  /* 1. Harga satuan mengikuti Standar Biaya yang dipilih.
+        Yang boleh diubah pengguna hanya volume. */
+  function kunciHargaStandarV1661(){
+    const pakaiSb=document.getElementById('sumberHargaV96')?.value==='SB';
+    const harga=document.getElementById('harga');
+    if(!harga)return;
+    harga.readOnly=pakaiSb;
+    harga.classList.toggle('input-terkunci-v1661',pakaiSb);
+    harga.title=pakaiSb?'Harga satuan mengikuti Standar Biaya yang dipilih. Ubah volume bila perlu.':'';
+    const ket=document.getElementById('ketHargaV1661');
+    if(ket)ket.textContent=pakaiSb?'Terkunci mengikuti Standar Biaya':'';
+  }
+  window.kunciHargaStandarV1661=kunciHargaStandarV1661;
+
+  function pasangKetHargaV1661(){
+    const harga=document.getElementById('harga');
+    if(!harga||document.getElementById('ketHargaV1661'))return;
+    const s=document.createElement('small');
+    s.id='ketHargaV1661'; s.className='ket-harga-v1661';
+    harga.parentNode&&harga.parentNode.appendChild(s);
+  }
+
+  if(typeof toggleSumberHargaV96==='function'){
+    const dasar=toggleSumberHargaV96;
+    toggleSumberHargaV96=function(){
+      const hasil=dasar.apply(this,arguments);
+      try{ pasangKetHargaV1661(); kunciHargaStandarV1661(); }catch(e){}
+      return hasil;
+    };
+  }
+  if(typeof pilihSbV96==='function'){
+    const dasarSb=pilihSbV96;
+    pilihSbV96=function(){
+      const hasil=dasarSb.apply(this,arguments);
+      try{ pasangKetHargaV1661(); kunciHargaStandarV1661(); }catch(e){}
+      return hasil;
+    };
+  }
+  if(typeof renderPerencanaan==='function'){
+    const dasarRender=renderPerencanaan;
+    renderPerencanaan=function(){
+      const hasil=dasarRender.apply(this,arguments);
+      try{ pasangKetHargaV1661(); kunciHargaStandarV1661(); }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* 2. Belanja Langsung tidak memakai SPTJM buatan sistem maupun pengajuan
+        pembayaran di dalam sistem, sesuai keputusan rapat. */
+  window.isBelanjaLangsungV1661=function(k){
+    const m=String((k&&k.metode_pemilihan)||'').toUpperCase();
+    if(m)return m==='BELANJA LANGSUNG';
+    const nilai=Number((k&&k.jumlah)||0)||((Number(k&&k.volume)||0)*(Number(k&&k.harga_satuan)||0));
+    return nilai>0&&nilai<=500000000;
+  };
+})();
+
+
+/* SIMPROV v166.2 - Standar Biaya disaring mengikuti kategori RAB,
+   dan uraian RAB ditampilkan pada detail perencanaan. */
+(function(){
+
+  /* Uraian diambil dari daftar RAB yang sudah dimuat. Tidak ada permintaan
+     tambahan ke server saat membuka detail. */
+  window.uraianRabV1662=function(k){
+    const kode=String((k&&k.kode_rab)||'').trim();
+    if(!kode)return '-';
+    try{
+      const rab=(typeof rabTerpilihV1658==='function')?null:null;
+      const list=window.__rabListV1662||[];
+      const found=list.find(r=>String(r.kode_rab||'').trim().toUpperCase()===kode.toUpperCase());
+      if(found&&found.uraian)return found.uraian;
+    }catch(e){}
+    return '-';
+  };
+
+  /* Simpan salinan daftar RAB terakhir agar detail dapat menampilkan uraian. */
+  if(typeof apiPost==='function'){
+    const dasarPost=apiPost;
+    apiPost=async function(payload){
+      const hasil=await dasarPost(payload);
+      try{
+        if(payload&&payload.action==='getRabV1655'&&hasil&&hasil.success)
+          window.__rabListV1662=hasil.rab||[];
+      }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Standar Biaya yang ditampilkan disaring mengikuti kategori baris RAB.
+     Indeks asli dipertahankan supaya pilihSbV96 tetap menunjuk item yang benar. */
+  function kategoriSbV1662(it){
+    try{
+      if(typeof grupKeNonV96==='function'&&grupKeNonV96(it.huruf))return 'NON PENGADAAN';
+    }catch(e){}
+    /* Sebagian grup bercampur, misalnya grup R berisi honorarium sekaligus
+       barang. Huruf grup saja tidak cukup, jadi nama item ikut diperiksa. */
+    var teks=((it&&it.nama)||'')+' '+((it&&it.grup)||'');
+    if(/honorarium|honor |uang saku|uang harian|perjalanan dinas|hadiah|penghargaan|transport peserta|uang transport|uang lembur|narasumber|moderator/i.test(teks))
+      return 'NON PENGADAAN';
+    return 'PENGADAAN';
+  }
+
+  if(typeof renderSbPickerListV96==='function'){
+    renderSbPickerListV96=function(q){
+      q=String(q||'').toLowerCase();
+      const el=document.getElementById('sbPickerListV96');
+      if(!el)return;
+      const rab=(typeof rabTerpilihV1658==='function')?rabTerpilihV1658():null;
+      const katRab=rab?String(rab.kategori||'').toUpperCase():'';
+      let disaring=0;
+      const html=SB_FLAT_V96.map((it,i)=>{
+        const key=(it.nama+' '+it.grup+' '+it.satuan+' '+it.nilai).toLowerCase();
+        if(q&&!key.includes(q))return '';
+        const katItem=(typeof kategoriSbSheetV167==='function')
+          ?kategoriSbSheetV167(it,kategoriSbV1662)
+          :kategoriSbV1662(it);
+        if(katRab&&katItem!==katRab){ disaring++; return ''; }
+        const nilaiTxt=typeof it.nilai==='number'?rupiah(it.nilai):esc(String(it.nilai));
+        return `<div class="sb-card-v96" onclick="pilihSbV96(${i})">
+          <div class="sb-huruf-v96">${esc(it.huruf)}</div>
+          <div class="sb-info-v96"><b>${esc(it.nama)}</b><small>${esc(it.grup)} &middot; ${esc(it.satuan)}</small></div>
+          <div class="sb-nilai-v96"><b>${nilaiTxt}</b><small>BATAS TERTINGGI</small></div></div>`;
+      }).join('');
+      const ket=katRab
+        ?`<p class="sb-filter-ket-v1662">Menampilkan standar biaya kategori <b>${esc(katRab)}</b> mengikuti ${esc(rab.kode_rab)}.${disaring?' '+disaring+' tidak sesuai kategori disembunyikan.':''}</p>`
+        :'';
+      el.innerHTML=ket+(html||'<p class="empty">Tidak ada yang cocok dengan kategori RAB yang dipilih.</p>');
+    };
+  }
+
+  /* Kategori tetap mengikuti RAB meski standar biaya yang dipilih
+     berasal dari kelompok lain. */
+  if(typeof pilihSbV96==='function'){
+    const dasarPilih=pilihSbV96;
+    pilihSbV96=function(){
+      const hasil=dasarPilih.apply(this,arguments);
+      try{
+        const rab=(typeof rabTerpilihV1658==='function')?rabTerpilihV1658():null;
+        const kat=rab?String(rab.kategori||'').toUpperCase():'';
+        if(kat==='PENGADAAN'||kat==='NON PENGADAAN'){
+          const sel=document.getElementById('kategoriPerencanaanV79');
+          if(sel&&sel.value!==kat){
+            sel.value=kat;
+            if(typeof toggleKategoriV79==='function')toggleKategoriV79();
+          }
+          if(kat==='PENGADAAN'){
+            const jn=document.getElementById('jenisNonPengadaanV79');
+            if(jn)jn.value='';
+          }
+        }
+      }catch(e){}
+      return hasil;
+    };
+  }
+})();
+
+
+/* SIMPROV v167 - Standar Biaya dibaca dari sheet.
+   SB_FLAT_V96 adalah const, tetapi isinya array yang dapat diganti di tempat.
+   Dengan mengganti isinya, keenam bagian yang sudah memakai array ini tetap
+   bekerja tanpa perubahan, termasuk pemilihan berbasis indeks.
+
+   Data lama tetap disimpan sebagai cadangan. Bila sheet kosong atau gagal
+   dibaca, daftar kembali memakai data lama sehingga pemilih tidak pernah
+   kosong. */
+(function(){
+  const CADANGAN_V167=SB_FLAT_V96.map(x=>({...x}));
+  let sudahMuatV167=false, sedangMuatV167=null;
+  window.sbSumberV167='bawaan';
+
+  function terapkanV167(list){
+    SB_FLAT_V96.length=0;
+    list.forEach(x=>SB_FLAT_V96.push(x));
+  }
+
+  async function muatSbV167(paksa){
+    if(sudahMuatV167&&!paksa)return SB_FLAT_V96;
+    if(sedangMuatV167&&!paksa)return sedangMuatV167;
+    sedangMuatV167=(async()=>{
+      try{
+        const r=await apiPost({action:'getStandarBiayaV167',user:currentUser});
+        const rows=(r&&r.success)?(r.standar_biaya||[]):[];
+        if(rows.length){
+          terapkanV167(rows.map(x=>({
+            huruf:x.huruf||'', grup:x.grup||'', nama:x.nama||'',
+            satuan:x.satuan||'', nilai:Number(x.nilai)||0,
+            kategori:x.kategori||'', jenis_non_pengadaan:x.jenis_non_pengadaan||'',
+            id_sb:x.id_sb||''
+          })));
+          window.sbSumberV167='sheet';
+        }else{
+          terapkanV167(CADANGAN_V167.map(x=>({...x})));
+          window.sbSumberV167='bawaan';
+        }
+        sudahMuatV167=true;
+      }catch(e){
+        terapkanV167(CADANGAN_V167.map(x=>({...x})));
+        window.sbSumberV167='bawaan';
+      }finally{ sedangMuatV167=null; }
+      return SB_FLAT_V96;
+    })();
+    return sedangMuatV167;
+  }
+  window.muatSbV167=muatSbV167;
+  window.invalidasiSbV167=()=>{sudahMuatV167=false;};
+  window.sbCadanganV167=()=>CADANGAN_V167.map(x=>({...x}));
+
+  /* Kategori diambil dari sheet bila ada. Penebakan dari huruf dan nama hanya
+     dipakai untuk data lama yang belum punya kolom kategori. */
+  if(typeof kategoriSbV1662!=='undefined'){}
+  window.kategoriSbSheetV167=function(it,tebak){
+    const k=String((it&&it.kategori)||'').toUpperCase();
+    if(k==='NON PENGADAAN'||k==='PENGADAAN')return k;
+    return typeof tebak==='function'?tebak(it):'PENGADAAN';
+  };
+
+  /* Pemilih memuat daftar saat pertama dibuka, bukan saat login,
+     sehingga waktu masuk aplikasi tidak bertambah. */
+  if(typeof openSbPickerV96==='function'){
+    const dasarBuka=openSbPickerV96;
+    openSbPickerV96=function(){
+      const hasil=dasarBuka.apply(this,arguments);
+      if(!sudahMuatV167){
+        const el=document.getElementById('sbPickerListV96');
+        if(el&&!el.innerHTML.trim())el.innerHTML='<p class="empty">Memuat standar biaya...</p>';
+        muatSbV167().then(()=>{ if(typeof renderSbPickerListV96==='function')renderSbPickerListV96(''); });
+      }
+      return hasil;
+    };
+  }
+})();
+
+
+/* SIMPROV v167.1 - Panel Admin untuk mengelola Standar Biaya. */
+(function(){
+  let daftarV1671=[], filterV1671='';
+
+  window.panelStandarBiayaV1671=function(){
+    return '<section class="panel fade-up premium-panel sb-kelola-panel-v1671">'+
+      '<div class="panel-title-row"><div><h3>Standar Biaya</h3>'+
+      '<p class="panel-sub">Daftar acuan harga satuan. Perubahan langsung dipakai pada Input Perencanaan tanpa penerbitan ulang aplikasi.</p></div>'+
+      '<button class="btn-refresh" onclick="muatKelolaSbV1671(true)">Muat Ulang</button></div>'+
+      '<div id="sbKelolaBodyV1671"><p class="empty">Memuat...</p></div></section>';
+  };
+
+  window.muatKelolaSbV1671=async function(paksa){
+    const box=document.getElementById('sbKelolaBodyV1671');
+    if(!box)return;
+    if(paksa&&typeof invalidasiSbV167==='function')invalidasiSbV167();
+    try{
+      const r=await apiPost({action:'getStandarBiayaV167',user:currentUser});
+      daftarV1671=(r&&r.success)?(r.standar_biaya||[]):[];
+    }catch(e){ daftarV1671=[]; }
+    gambarV1671();
+  };
+
+  window.cariSbV1671=function(v){ filterV1671=String(v||'').toLowerCase(); gambarV1671(true); };
+
+  function gambarV1671(hanyaTabel){
+    const box=document.getElementById('sbKelolaBodyV1671');
+    if(!box)return;
+    if(!daftarV1671.length){
+      box.innerHTML='<div class="sb-kosong-v1671"><p>Sheet STANDAR_BIAYA masih kosong. Aplikasi sementara memakai daftar bawaan.</p>'+
+        '<button class="btn-refresh" onclick="pindahkanSbV1671()">Pindahkan Daftar Bawaan ke Sheet</button>'+
+        '<small class="hint-v165">Sekali klik. Setelah pindah, daftar dapat ditambah dan diubah dari sini.</small></div>';
+      return;
+    }
+    const q=filterV1671;
+    const rows=daftarV1671.filter(x=>!q||((x.nama+' '+x.grup+' '+x.satuan).toLowerCase().includes(q)));
+    const tbody=rows.slice(0,300).map(x=>
+      `<tr><td>${esc(x.huruf||'-')}</td><td>${esc(x.nama)}</td><td>${esc(x.grup||'-')}</td>`+
+      `<td>${esc(x.satuan||'-')}</td><td class="num">${x.at_cost?'<i class="at-cost-v1671">At Cost</i>':rupiah(x.nilai)}</td>`+
+      `<td><span class="sb-kat-v1671 ${x.kategori==='NON PENGADAAN'?'non':'pgd'}">${esc(x.kategori)}</span></td>`+
+      `<td><button class="btn-mini" onclick="editSbV1671('${esc(x.id_sb)}')">Ubah</button> `+
+      `<button class="btn-mini btn-soft" onclick="nonaktifSbV1671('${esc(x.id_sb)}','${esc(x.nama)}')">Nonaktifkan</button></td></tr>`).join('');
+
+    const tabel='<div class="table-wrap"><table class="sb-kelola-table-v1671"><thead><tr>'+
+      '<th>Grup</th><th>Nama</th><th>Kelompok</th><th>Satuan</th><th>Nilai</th><th>Kategori</th><th>Aksi</th>'+
+      '</tr></thead><tbody>'+(tbody||'<tr><td colspan="7" class="empty">Tidak ada yang cocok</td></tr>')+'</tbody></table></div>'+
+      (rows.length>300?`<p class="panel-sub">Menampilkan 300 dari ${rows.length} baris. Persempit dengan pencarian.</p>`:'');
+
+    if(hanyaTabel){
+      const t=document.getElementById('sbTabelV1671');
+      if(t){ t.innerHTML=tabel; return; }
+    }
+    box.innerHTML='<div class="sb-kelola-head-v1671">'+
+      `<input type="text" placeholder="Cari nama, kelompok, atau satuan..." value="${esc(filterV1671)}" oninput="cariSbV1671(this.value)">`+
+      '<button class="btn-refresh" onclick="editSbV1671(\'\')">Tambah Standar Biaya</button>'+
+      `<span class="sb-jumlah-v1671">${daftarV1671.length} baris aktif</span></div>`+
+      '<div id="sbTabelV1671">'+tabel+'</div>';
+  }
+
+  window.pindahkanSbV1671=async function(){
+    const bawaan=(typeof sbCadanganV167==='function')?sbCadanganV167():[];
+    if(!bawaan.length){ alert('Daftar bawaan tidak ditemukan.'); return; }
+    const ok=await confirmActionV133({title:'Pindahkan Standar Biaya',
+      message:bawaan.length+' baris daftar bawaan akan disalin ke sheet STANDAR_BIAYA. Setelah itu daftar dapat ditambah dan diubah dari aplikasi. Lanjutkan?',
+      confirmText:'Ya, Pindahkan'});
+    if(!ok)return;
+    showLoading('Memindahkan '+bawaan.length+' baris...');
+    try{
+      const items=bawaan.map(x=>({
+        huruf:x.huruf, grup:x.grup, nama:x.nama, satuan:x.satuan, nilai:x.nilai,
+        kategori:(typeof kategoriSbV1662==='function')?kategoriSbV1662(x):'PENGADAAN'
+      }));
+      const r=await apiPost({action:'seedStandarBiayaV167',user:currentUser,data:{items}});
+      if(!r.success)throw new Error(r.message||'Gagal memindahkan');
+      alert(r.message);
+      if(typeof invalidasiSbV167==='function')invalidasiSbV167();
+      await muatKelolaSbV1671(true);
+    }catch(e){ alert(e.message||String(e)); }
+    finally{ hideLoading(); }
+  };
+
+  window.editSbV1671=function(id){
+    const x=id?daftarV1671.find(r=>r.id_sb===id):null;
+    const m=document.getElementById('sbFormModalV1671')||(()=>{
+      const d=document.createElement('div'); d.id='sbFormModalV1671'; d.className='sbv-overlay-v95';
+      document.body.appendChild(d); return d;})();
+    m.classList.remove('hidden');
+    m.innerHTML=`<div class="sbv-box-v95 sb-form-box-v1671"><div class="sbv-head-v95">
+      <h3>${x?'Ubah':'Tambah'} Standar Biaya</h3>
+      <button class="btn-soft" type="button" onclick="tutupSbFormV1671()">Tutup</button></div>
+      <div class="form-grid sb-form-grid-v1671">
+        <div class="field"><label>Huruf Grup</label><input id="sbHurufV1671" maxlength="1" value="${esc(x?.huruf||'')}" placeholder="A"></div>
+        <div class="field"><label>Kelompok</label><input id="sbGrupV1671" value="${esc(x?.grup||'')}" placeholder="Kegiatan Pendidikan dan Pelatihan"></div>
+        <div class="field full"><label>Nama Standar Biaya</label><input id="sbNamaV1671" value="${esc(x?.nama||'')}" placeholder="Honorarium Narasumber"></div>
+        <div class="field"><label>Satuan</label><input id="sbSatuanV1671" value="${esc(x?.satuan||'')}" placeholder="Orang/Kegiatan"></div>
+        <div class="field"><label>Sifat</label><select id="sbSifatV1671" onchange="toggleSifatSbV1671()">
+          <option value="BATAS TERTINGGI"${x&&x.at_cost?'':' selected'}>Batas Tertinggi</option>
+          <option value="AT COST"${x&&x.at_cost?' selected':''}>At Cost</option></select></div>
+        <div class="field"><label>Nilai</label><input id="sbNilaiV1671" value="${x&&!x.at_cost?Number(x.nilai).toLocaleString('id-ID'):''}" placeholder="1.000.000"${x&&x.at_cost?' disabled':''}></div>
+        <div class="field"><label>Kategori</label><select id="sbKatV1671">
+          <option value="PENGADAAN"${x?.kategori!=='NON PENGADAAN'?' selected':''}>Pengadaan</option>
+          <option value="NON PENGADAAN"${x?.kategori==='NON PENGADAAN'?' selected':''}>Non Pengadaan</option></select></div>
+      </div>
+      <div class="sb-form-aksi-v1671">
+        <button class="btn-refresh" onclick="simpanSbV1671('${esc(id||'')}')">Simpan</button>
+        <button class="btn-soft" onclick="tutupSbFormV1671()">Batal</button></div></div>`;
+  };
+  window.tutupSbFormV1671=function(){ document.getElementById('sbFormModalV1671')?.classList.add('hidden'); };
+
+  window.simpanSbV1671=async function(id){
+    const data={
+      id_sb:id||'',
+      huruf:document.getElementById('sbHurufV1671')?.value||'',
+      grup:document.getElementById('sbGrupV1671')?.value||'',
+      nama:document.getElementById('sbNamaV1671')?.value||'',
+      satuan:document.getElementById('sbSatuanV1671')?.value||'',
+      sifat:document.getElementById('sbSifatV1671')?.value||'BATAS TERTINGGI',
+      nilai:toNumber(document.getElementById('sbNilaiV1671')?.value),
+      kategori:document.getElementById('sbKatV1671')?.value||'PENGADAAN'
+    };
+    if(!data.nama.trim()){ alert('Nama standar biaya wajib diisi.'); return; }
+    if(data.sifat!=='AT COST'&&!(data.nilai>0)){ alert('Nilai harus lebih besar dari nol.'); return; }
+    showLoading('Menyimpan...');
+    try{
+      const r=await apiPost({action:'saveStandarBiayaV167',user:currentUser,data});
+      if(!r.success)throw new Error(r.message||'Gagal menyimpan');
+      tutupSbFormV1671();
+      if(typeof invalidasiSbV167==='function')invalidasiSbV167();
+      await muatKelolaSbV1671(true);
+    }catch(e){ alert(e.message||String(e)); }
+    finally{ hideLoading(); }
+  };
+
+  window.nonaktifSbV1671=async function(id,nama){
+    const ok=await confirmActionV133({title:'Nonaktifkan Standar Biaya',
+      message:'"'+nama+'" tidak akan muncul lagi pada pemilih. Perencanaan lama yang memakainya tetap terbaca. Lanjutkan?',
+      confirmText:'Ya, Nonaktifkan'});
+    if(!ok)return;
+    showLoading('Memproses...');
+    try{
+      const r=await apiPost({action:'deleteStandarBiayaV167',user:currentUser,id_sb:id});
+      if(!r.success)throw new Error(r.message||'Gagal');
+      if(typeof invalidasiSbV167==='function')invalidasiSbV167();
+      await muatKelolaSbV1671(true);
+    }catch(e){ alert(e.message||String(e)); }
+    finally{ hideLoading(); }
+  };
+
+  /* Dipasang pada versi renderManajemenAkunV65 yang aktif. */
+  if(typeof renderManajemenAkunV65==='function'){
+    const dasar=renderManajemenAkunV65;
+    renderManajemenAkunV65=function(){
+      const hasil=dasar.apply(this,arguments);
+      try{
+        if(typeof isSuperAdminV65==='function'&&!isSuperAdminV65())return hasil;
+        const area=document.getElementById('contentArea');
+        if(area&&!document.getElementById('sbKelolaBodyV1671')){
+          area.insertAdjacentHTML('beforeend',panelStandarBiayaV1671());
+          muatKelolaSbV1671(false);
+        }
+      }catch(e){}
+      return hasil;
+    };
+  }
+})();
+
+
+/* SIMPROV v167.1 - Nilai At Cost tidak dikunci.
+   At Cost berarti biaya mengikuti kebutuhan nyata dan tidak memiliki batas
+   tertinggi, sehingga harga satuan harus tetap dapat diisi pengguna. */
+(function(){
+  window.sbAtCostV1671=function(it){
+    if(!it)return false;
+    if(it.at_cost===true)return true;
+    if(String(it.sifat||'').toUpperCase()==='AT COST')return true;
+    return /at\s*cost/i.test(String(it.nilai==null?'':it.nilai));
+  };
+
+  function sbTerpilihV1671(){
+    try{
+      if(typeof sbPickIdxV96==='undefined'||sbPickIdxV96<0)return null;
+      return SB_FLAT_V96[sbPickIdxV96]||null;
+    }catch(e){ return null; }
+  }
+  window.sbTerpilihV1671=sbTerpilihV1671;
+
+  /* Kunci hanya berlaku untuk standar biaya bernilai tetap. */
+  if(typeof kunciHargaStandarV1661==='function'){
+    kunciHargaStandarV1661=function(){
+      const pakaiSb=document.getElementById('sumberHargaV96')?.value==='SB';
+      const harga=document.getElementById('harga');
+      if(!harga)return;
+      const it=sbTerpilihV1671();
+      const atCost=pakaiSb&&it&&window.sbAtCostV1671(it);
+      const kunci=pakaiSb&&!atCost;
+      harga.readOnly=kunci;
+      harga.classList.toggle('input-terkunci-v1661',kunci);
+      harga.title=kunci?'Harga satuan mengikuti Standar Biaya yang dipilih. Ubah volume bila perlu.':'';
+      const ket=document.getElementById('ketHargaV1661');
+      if(ket)ket.textContent=kunci?'Terkunci mengikuti Standar Biaya'
+        :(atCost?'At Cost, isi sesuai kebutuhan nyata':'');
+    };
+    window.kunciHargaStandarV1661=kunciHargaStandarV1661;
+  }
+
+  /* Nilai At Cost jangan diisikan sebagai nol. */
+  if(typeof pilihSbV96==='function'){
+    const dasar=pilihSbV96;
+    pilihSbV96=function(i){
+      const hasil=dasar.apply(this,arguments);
+      try{
+        const it=SB_FLAT_V96[i];
+        if(it&&window.sbAtCostV1671(it)){
+          const harga=document.getElementById('harga');
+          if(harga){
+            harga.readOnly=false;
+            harga.value='';
+            harga.focus({preventScroll:true});
+          }
+          const total=document.getElementById('totalOtomatis');
+          if(total)total.value='Rp0';
+        }
+        if(typeof kunciHargaStandarV1661==='function')kunciHargaStandarV1661();
+      }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Tampilkan At Cost pada daftar, bukan Rp 0. */
+  if(typeof renderSbPickerListV96==='function'){
+    const dasarRender=renderSbPickerListV96;
+    renderSbPickerListV96=function(q){
+      const hasil=dasarRender.apply(this,arguments);
+      try{
+        const el=document.getElementById('sbPickerListV96');
+        if(!el)return hasil;
+        el.querySelectorAll('.sb-card-v96').forEach(card=>{
+          const m=(card.getAttribute('onclick')||'').match(/pilihSbV96\((\d+)\)/);
+          if(!m)return;
+          const it=SB_FLAT_V96[Number(m[1])];
+          if(it&&window.sbAtCostV1671(it)){
+            const nilai=card.querySelector('.sb-nilai-v96');
+            if(nilai)nilai.innerHTML='<b>At Cost</b><small>SESUAI KEBUTUHAN</small>';
+          }
+        });
+      }catch(e){}
+      return hasil;
+    };
+  }
+})();
+
+
+window.toggleSifatSbV1671=function(){
+  const atCost=document.getElementById('sbSifatV1671')?.value==='AT COST';
+  const nilai=document.getElementById('sbNilaiV1671');
+  if(nilai){ nilai.disabled=atCost; if(atCost)nilai.value=''; }
+};
+
+
+/* SIMPROV v168 - Dashboard Monitoring diselaraskan dengan dashboard publik.
+   - Ringkasan atas menambah kartu Persentase Realisasi.
+   - Kartu kerja (Perlu Persetujuan, Dokumen Perlu Dicek, Bidang Melebihi Pagu)
+     tetap ada, hanya diseragamkan gayanya.
+   - Rincian per bidang diringkas KHUSUS untuk Pimpinan menjadi Pagu, Realisasi,
+     dan Persentase. Admin tetap melihat rincian lengkap. */
+(function(){
+  function angkaV168(v){ const n=Number(String(v==null?'':v).replace(/[^0-9.-]/g,'')); return isFinite(n)?n:0; }
+  function roleV168(){ try{return String(currentUser?.role||'').toUpperCase();}catch(e){return '';} }
+  function isPimpinanMurniV168(){ return roleV168()==='PIMPINAN'; }
+  function pctV168(real,pagu){ const p=angkaV168(pagu); return p?Math.max(0,Math.min(100,angkaV168(real)/p*100)):0; }
+
+  /* Kartu Persentase Realisasi pada ringkasan atas. */
+  /* Buang kartu yang tidak diinginkan pada ringkasan Dashboard Monitoring.
+     Kartu ini dilabel ulang oleh beberapa patch, jadi dicocokkan dari teksnya
+     setelah seluruh patch selesai berjalan. */
+  function buangKartuTakDipakaiV168(){
+    if(String(activeMenu||'')!=='Dashboard Monitoring')return;
+    const wrap=document.getElementById('summaryCards'); if(!wrap)return;
+    [...wrap.querySelectorAll('.summary-card')].forEach(card=>{
+      const label=(card.querySelector('span')?.textContent||'').trim().toUpperCase();
+      if(label==='TOTAL PERENCANAAN'||label.indexOf('SISA PAGU')===0)card.remove();
+    });
+  }
+
+  function tambahKartuPersenV168(){
+    if(String(activeMenu||'')!=='Dashboard Monitoring')return;
+    const wrap=document.getElementById('summaryCards'); if(!wrap)return;
+    buangKartuTakDipakaiV168();
+    const rekap=Array.isArray(dashboard?.rekap)?dashboard.rekap:[];
+    const totalPagu=rekap.reduce((t,r)=>t+angkaV168(r.pagu),0);
+    const totalReal=rekap.reduce((t,r)=>t+angkaV168(r.total_realisasi),0);
+    const pct=pctV168(totalReal,totalPagu);
+    let kartu=wrap.querySelector('.summary-card-persen-v168');
+    if(!kartu){
+      kartu=document.createElement('div');
+      kartu.className='summary-card summary-card-v159 summary-card-persen-v168';
+      wrap.appendChild(kartu);
+    }
+    kartu.innerHTML=`<span>Persentase Realisasi</span><b>${pct.toFixed(1)}%</b>`;
+  }
+
+  if(typeof renderSummary==='function'){
+    const dasar=renderSummary;
+    renderSummary=function(){
+      const hasil=dasar.apply(this,arguments);
+      try{ tambahKartuPersenV168(); }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Rincian per bidang diringkas untuk Pimpinan. */
+  if(typeof renderMonitoring==='function'){
+    const dasar=renderMonitoring;
+    renderMonitoring=function(){
+      const hasil=dasar.apply(this,arguments);
+      if(!isPimpinanMurniV168())return hasil;
+      try{
+        const target=document.getElementById('contentArea');
+        const grid=target&&target.querySelector('.monitor-grid')?.parentElement?.parentElement;
+        const rekap=Array.isArray(dashboard?.rekap)?dashboard.rekap:[];
+        const kartu=(target?target.querySelectorAll('.monitor-card'):[]);
+        rekap.forEach((r,i)=>{
+          const el=kartu[i]; if(!el)return;
+          const g=el.querySelector('.monitor-grid'); if(!g)return;
+          const real=angkaV168(r.total_realisasi), pct=pctV168(real,r.pagu);
+          g.innerHTML=
+            `<div><span>Pagu</span><strong>${rupiah(angkaV168(r.pagu))}</strong></div>`+
+            `<div><span>Total Realisasi</span><strong>${rupiah(real)}</strong></div>`+
+            `<div><span>Persentase Realisasi</span><strong>${pct.toFixed(1)}%</strong></div>`;
+        });
+      }catch(e){}
+      return hasil;
+    };
+  }
+
+  /* Ringkas juga tabel Cetak Laporan PDF untuk Pimpinan. */
+  window.isPimpinanRingkasV168=isPimpinanMurniV168;
+})();
+
+
+/* SIMPROV v168.1 - Laporan PDF untuk Pimpinan diringkas.
+   Pimpinan menerima rekap anggaran ringkas: Pagu, Realisasi, Persentase.
+   Tabel rincian perencanaan dan dokumen tidak disertakan, karena Pimpinan
+   memantau serapan, bukan memeriksa berkas. Admin dan verifikator tetap
+   menerima laporan lengkap. */
+(function(){
+  if(typeof downloadDashboardPDF!=='function')return;
+  const dasar=downloadDashboardPDF;
+
+  function angkaV1681(v){ const n=Number(String(v==null?'':v).replace(/[^0-9.-]/g,'')); return isFinite(n)?n:0; }
+
+  downloadDashboardPDF=function(){
+    const pimpinan=(typeof window.isPimpinanRingkasV168==='function')&&window.isPimpinanRingkasV168();
+    if(!pimpinan)return dasar.apply(this,arguments);
+
+    const rekap=(typeof filterAssignedV66==='function')
+      ? filterAssignedV66(dashboard.rekap||[])
+      : (dashboard.rekap||[]);
+    const totalPagu=rekap.reduce((s,r)=>s+angkaV1681(r.pagu),0);
+    const totalReal=rekap.reduce((s,r)=>s+angkaV1681(r.total_realisasi),0);
+    const persen=totalPagu?Math.max(0,Math.min(100,totalReal/totalPagu*100)):0;
+
+    const baris=rekap.map((r,i)=>{
+      const pagu=angkaV1681(r.pagu),real=angkaV1681(r.total_realisasi);
+      const p=pagu?Math.max(0,Math.min(100,real/pagu*100)):0;
+      return `<tr><td>${i+1}</td><td>${plainText(r.nama_bidang)}<br><span class="small">${plainText(r.id_bidang)}</span></td>`+
+        `<td>${rupiah(pagu)}</td><td>${rupiah(real)}</td><td>${p.toFixed(1)}%</td></tr>`;
+    }).join('');
+
+    const body=`<div class="summary">`+
+      `<div class="card"><span>Total Pagu</span><b>${rupiah(totalPagu)}</b></div>`+
+      `<div class="card"><span>Total Realisasi</span><b>${rupiah(totalReal)}</b></div>`+
+      `<div class="card"><span>Persentase Realisasi</span><b>${persen.toFixed(1)}%</b></div></div>`+
+      `<h3>Rekapitulasi Realisasi Anggaran per Bidang</h3>`+
+      `<table><thead><tr><th>No</th><th>Bidang</th><th>Pagu</th><th>Total Realisasi</th><th>Persentase</th></tr></thead>`+
+      `<tbody>${baris||'<tr><td colspan="5">Belum ada data</td></tr>'}</tbody></table>`;
+
+    openReportWindow('Laporan Realisasi Anggaran - Pimpinan',body);
+  };
 })();
