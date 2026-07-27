@@ -424,8 +424,8 @@ function renderLaporanUser(){
       </div>
       <div class="report-summary-grid">
         <div><span>Pagu Bidang</span><strong>${rupiah(r.pagu)}</strong></div>
-        <div><span>Total Perencanaan</span><strong>${rupiah(r.total_perencanaan)}</strong></div>
-        <div><span>Sisa Pagu</span><strong>${rupiah(r.sisa_pagu)}</strong></div>
+        <div><span>Total Realisasi</span><strong>${rupiah(toNumber(r.total_realisasi))}</strong></div>
+        <div><span>Persentase Realisasi</span><strong>${(toNumber(r.pagu)?Math.max(0,Math.min(100,toNumber(r.total_realisasi)/toNumber(r.pagu)*100)):0).toFixed(1)}%</strong></div>
         <div><span>Dokumen Valid</span><strong>${dokValid}/${totalDokumen}</strong></div>
       </div>
       <div class="report-card-main">
@@ -19886,6 +19886,76 @@ window.toggleSifatSbV1671=function(){
           `<tbody><tr><td>${nama}</td><td>${rupiah(pagu)}</td><td>${rupiah(real)}</td><td>${pct.toFixed(1)}%</td></tr></tbody></table>`;
         openReportWindow('Laporan Realisasi Anggaran - '+nama,body);
       }catch(e){ return dasar.apply(this,arguments); }
+    };
+  }
+})();
+
+
+/* SIMPROV v168.3 - Rapikan kartu, hapus menu Surat, dan pastikan laporan
+   bidang benar-benar ringkas.
+   - Menu Surat dihapus dari seluruh role.
+   - Baris ringkasan atas dibuat rata dan seragam untuk semua role.
+   - Laporan cetak keseluruhan (renderLaporan) tidak lagi memuat Total
+     Perencanaan dan Sisa Pagu Perencanaan pada kartu ringkasannya. */
+(function(){
+  /* 1. Hapus menu Surat dari semua role. */
+  if(typeof menuListV133==='function'){
+    const dasar=menuListV133;
+    menuListV133=function(){
+      const menus=dasar.apply(this,arguments);
+      return Array.isArray(menus)?menus.filter(m=>String(m)!=='Surat'):menus;
+    };
+  }
+  if(typeof setMenu==='function'){
+    const dasarSet=setMenu;
+    setMenu=function(m){
+      if(String(m)==='Surat'){
+        const daftar=(typeof menuListV133==='function')?menuListV133():[];
+        m=daftar[0]||'Dashboard Monitoring';
+      }
+      return dasarSet.call(this,m);
+    };
+  }
+
+  /* 2. Kerapian baris kartu ringkasan: jarak seragam dan rata penuh. */
+  function rapikanKartuV1683(){
+    const wrap=document.getElementById('summaryCards');
+    if(!wrap)return;
+    const n=wrap.querySelectorAll('.summary-card').length;
+    if(n>0)wrap.style.setProperty('--kartu-v1683',String(n));
+    wrap.classList.add('summary-grid-rapi-v1683');
+  }
+  ['renderSummary','setMenu','renderMenu'].forEach(fn=>{
+    if(typeof window[fn]==='function'){
+      const dasar=window[fn];
+      window[fn]=function(){
+        const hasil=dasar.apply(this,arguments);
+        try{ requestAnimationFrame(rapikanKartuV1683); }catch(e){}
+        return hasil;
+      };
+    }
+  });
+
+  /* 3. Laporan cetak keseluruhan (Admin/verifikator) ikut membuang dua kartu. */
+  if(typeof downloadDashboardPDF==='function'){
+    const dasar=downloadDashboardPDF;
+    downloadDashboardPDF=function(){
+      const asli=window.openReportWindow;
+      if(typeof asli==='function'){
+        window.openReportWindow=function(judul,body){
+          try{
+            let b=String(body||'');
+            /* Buang kartu Total Perencanaan dan Sisa Pagu Perencanaan dari
+               blok ringkasan laporan, apa pun urutannya. */
+            b=b.replace(/<div[^>]*>\s*<span>\s*Total Perencanaan\s*<\/span>[\s\S]*?<\/div>/gi,'');
+            b=b.replace(/<div[^>]*>\s*<span>\s*Sisa Pagu(?: Perencanaan)?\s*<\/span>[\s\S]*?<\/div>/gi,'');
+            body=b;
+          }catch(e){}
+          return asli.call(this,judul,body);
+        };
+      }
+      try{ return dasar.apply(this,arguments); }
+      finally{ window.openReportWindow=asli; }
     };
   }
 })();
