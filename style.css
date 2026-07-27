@@ -3778,3 +3778,13 @@ button.plan-id-link-v161:focus-visible{
 .sb-form-grid-v1671 .field.full{grid-column:1/-1}
 .sb-form-aksi-v1671{display:flex;gap:10px;justify-content:flex-end}
 .at-cost-v1671{color:#8a5a00;font-style:normal;font-weight:700}
+
+/* SIMPROV v168.3 - Kerapian kartu ringkasan */
+.summary-grid-rapi-v1683{display:grid;gap:14px;align-items:stretch}
+.summary-grid-rapi-v1683 .summary-card{margin:0;min-height:96px;display:flex;flex-direction:column;justify-content:center}
+@media(min-width:900px){
+  .summary-grid-rapi-v1683{grid-template-columns:repeat(var(--kartu-v1683,4),minmax(0,1fr))}
+}
+@media(max-width:899px){
+  .summary-grid-rapi-v1683{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
